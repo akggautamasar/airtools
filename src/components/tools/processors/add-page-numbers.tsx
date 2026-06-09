@@ -47,7 +47,7 @@ export default function AddPageNumbers({ tool }: { tool: Tool }) {
         page.drawText(text, { x, y, size: 12, font, color: rgb(0.3, 0.3, 0.3) });
       });
       const out = await doc.save();
-      setResult({ blob: new Blob([out as BlobPart], { type: "application/pdf" }), name: f.name });
+      setResult({ blob: new Blob([out.buffer as ArrayBuffer], { type: "application/pdf" }), name: f.name });
     } catch (e) { console.error(e); }
     setProcessing(false);
   };

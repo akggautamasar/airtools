@@ -38,7 +38,7 @@ export default function ImageToPDF({ tool }: { tool: Tool }) {
         page.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height });
       }
       const out = await doc.save();
-      setResult(new Blob([out as BlobPart], { type: "application/pdf" }));
+      setResult(new Blob([out.buffer as ArrayBuffer], { type: "application/pdf" }));
     } catch (e) { console.error(e); }
     setProcessing(false);
   };

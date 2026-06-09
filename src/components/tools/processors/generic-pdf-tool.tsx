@@ -22,7 +22,7 @@ export default function GenericPDFTool({ tool }: { tool: Tool }) {
       const bytes = await f.file.arrayBuffer();
       const doc = await PDFDocument.load(bytes, { ignoreEncryption: true });
       const out = await doc.save();
-      setResult({ blob: new Blob([out as BlobPart], { type: "application/pdf" }), name: f.name });
+      setResult({ blob: new Blob([out.buffer as ArrayBuffer], { type: "application/pdf" }), name: f.name });
     } catch (e) { console.error(e); }
     setProcessing(false);
   };

@@ -32,6 +32,7 @@ export const ALL_TOOLS: Tool[] = [
   { slug: "repair-pdf", name: "Repair PDF", description: "Recover data from a corrupted or damaged PDF document by rebuilding its structure.", category: "pdf", icon: "Hammer", color: "text-red-500", tags: ["repair", "fix", "recover", "corrupted"] },
   { slug: "remove-annotations", name: "Remove Annotations", description: "Batch remove highlights, comments, strikeouts and other annotations from a PDF.", category: "pdf", icon: "Eraser", color: "text-red-500", tags: ["annotations", "remove", "highlights", "clean"] },
   { slug: "rename-pdf", name: "Rename PDF", description: "Change a PDF's filename based on text extracted from its pages.", category: "pdf", icon: "FileEdit", color: "text-red-500", tags: ["rename", "filename", "organize"] },
+  { slug: "edit-pdf", name: "Edit PDF", description: "Add text, images, shapes, drawings, highlights and whiteout to your PDF pages.", category: "pdf", icon: "Edit3", color: "text-red-500", tags: ["edit", "annotate", "text", "draw"], popular: true },
 
   // eBook Tools
   { slug: "ebook-to-pdf", name: "eBook to PDF", description: "Convert various eBook formats to PDF for universal compatibility.", category: "ebook", icon: "BookOpen", color: "text-purple-500", tags: ["ebook", "convert", "pdf"] },

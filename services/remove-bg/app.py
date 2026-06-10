@@ -39,6 +39,8 @@ the browser, so the tool keeps working either way.
 """
 
 import base64
+import gc
+import io
 import os
 import re
 from urllib.request import urlopen, Request as UrlRequest
@@ -46,12 +48,18 @@ from urllib.request import urlopen, Request as UrlRequest
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
+from PIL import Image
 from rembg import new_session, remove
 
 # u2netp is the lightweight model (~5MB, low memory footprint) so this
 # fits comfortably on free-tier hosts (e.g. Render's 512MB limit). If your
 # host has more RAM, set REMBG_MODEL=isnet-general-use for higher quality.
 MODEL_NAME = os.environ.get("REMBG_MODEL", "u2netp")
+
+# Downscale large input images before processing — full-resolution photos
+# (e.g. 4000x3000) blow past 512MB of RAM during inference. 1500px is
+# plenty for web/social-media use.
+MAX_DIMENSION = int(os.environ.get("MAX_IMAGE_DIMENSION", "1500"))
 
 session = new_session(MODEL_NAME)
 
@@ -78,6 +86,24 @@ def load_image_bytes(image_url: str) -> bytes:
     return base64.b64decode(b64_data)
 
 
+def downscale_if_needed(image_bytes: bytes) -> bytes:
+    try:
+        with Image.open(io.BytesIO(image_bytes)) as img:
+            width, height = img.size
+            if max(width, height) <= MAX_DIMENSION:
+                return image_bytes
+
+            scale = MAX_DIMENSION / max(width, height)
+            new_size = (max(1, int(width * scale)), max(1, int(height * scale)))
+            resized = img.convert("RGBA").resize(new_size, Image.LANCZOS)
+            buf = io.BytesIO()
+            resized.save(buf, format="PNG")
+            return buf.getvalue()
+    except Exception:
+        # Not a recognizable image — let rembg surface the error.
+        return image_bytes
+
+
 def run_removal(image_url: str):
     if not image_url:
         return JSONResponse({"error": "Parameter 'imageUrl' is required."}, status_code=400)
@@ -87,10 +113,15 @@ def run_removal(image_url: str):
     except Exception:
         return JSONResponse({"error": "Failed to load the provided 'imageUrl'."}, status_code=400)
 
+    input_bytes = downscale_if_needed(input_bytes)
+
     try:
         output_bytes = remove(input_bytes, session=session)
     except Exception as e:
         return JSONResponse({"error": f"Background removal failed: {e}"}, status_code=502)
+    finally:
+        del input_bytes
+        gc.collect()
 
     return Response(
         content=output_bytes,

@@ -20,6 +20,11 @@ RUN python -c "import os; from rembg import new_session; new_session(os.environ[
 
 COPY app.py .
 
+# Limit ONNX Runtime / OpenMP thread pools — extra threads each allocate
+# their own buffers, which adds up on memory-constrained free-tier hosts.
+ENV OMP_NUM_THREADS=1
+ENV ORT_NUM_THREADS=1
+
 ENV PORT=8000
 EXPOSE 8000
 

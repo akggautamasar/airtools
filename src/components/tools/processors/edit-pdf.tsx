@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import {
   Download, Loader2, MousePointer2, Type, Square, Circle as CircleIcon,
   Minus, Pencil, Image as ImageIcon, Trash2, Highlighter, Eraser,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, TextCursorInput,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UploadZone } from "@/components/tools/upload-zone";
@@ -16,7 +16,7 @@ import { PDFDocument, rgb, degrees, StandardFonts } from "pdf-lib";
 
 const RENDER_SCALE = 1.5;
 
-type ToolMode = "select" | "text" | "rect" | "circle" | "line" | "draw" | "whiteout" | "highlight" | "image";
+type ToolMode = "select" | "text" | "edittext" | "rect" | "circle" | "line" | "draw" | "whiteout" | "highlight" | "image";
 
 interface EditElement {
   id: string;
@@ -36,18 +36,60 @@ interface EditElement {
   origin?: { x: number; y: number };
 }
 
+interface TextRegion {
+  text: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 interface PageData {
   dataUrl: string;
   width: number;
   height: number;
   pdfWidth: number;
   pdfHeight: number;
+  textItems: TextRegion[];
 }
 
 function hexToRgb(hex: string) {
   const m = hex.replace("#", "");
   const bigint = parseInt(m, 16);
   return { r: ((bigint >> 16) & 255) / 255, g: ((bigint >> 8) & 255) / 255, b: (bigint & 255) / 255 };
+}
+
+function rgbToHex(r: number, g: number, b: number) {
+  return `#${[r, g, b].map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0")).join("")}`;
+}
+
+function getPixel(imageData: ImageData, x: number, y: number) {
+  const px = Math.max(0, Math.min(imageData.width - 1, Math.round(x)));
+  const py = Math.max(0, Math.min(imageData.height - 1, Math.round(y)));
+  const idx = (py * imageData.width + px) * 4;
+  return { r: imageData.data[idx], g: imageData.data[idx + 1], b: imageData.data[idx + 2] };
+}
+
+// Sample the background color just outside a text region, and the darkest
+// (ink) color inside it, so a replacement can blend in and match.
+function sampleRegionColors(imageData: ImageData, box: TextRegion) {
+  const bg = getPixel(imageData, box.x - 2, box.y - 2);
+  let darkest = { r: 0, g: 0, b: 0 };
+  let minLum = Infinity;
+  const stepX = Math.max(1, Math.floor(box.width / 12));
+  const stepY = Math.max(1, Math.floor(box.height / 6));
+  for (let yy = box.y; yy < box.y + box.height; yy += stepY) {
+    for (let xx = box.x; xx < box.x + box.width; xx += stepX) {
+      const px = getPixel(imageData, xx, yy);
+      const lum = px.r + px.g + px.b;
+      if (lum < minLum) {
+        minLum = lum;
+        darkest = px;
+      }
+    }
+  }
+  if (!Number.isFinite(minLum)) darkest = { r: 0, g: 0, b: 0 };
+  return { bg: rgbToHex(bg.r, bg.g, bg.b), text: rgbToHex(darkest.r, darkest.g, darkest.b) };
 }
 
 function dataUrlToBytes(dataUrl: string): Uint8Array {
@@ -81,7 +123,8 @@ function URLImage(props: Omit<Konva.ImageConfig, "image"> & { src: string }) {
 
 const TOOLS: { id: ToolMode; label: string; icon: React.ElementType }[] = [
   { id: "select", label: "Select", icon: MousePointer2 },
-  { id: "text", label: "Text", icon: Type },
+  { id: "edittext", label: "Edit Text", icon: TextCursorInput },
+  { id: "text", label: "Add Text", icon: Type },
   { id: "rect", label: "Rectangle", icon: Square },
   { id: "circle", label: "Ellipse", icon: CircleIcon },
   { id: "line", label: "Line", icon: Minus },
@@ -110,6 +153,7 @@ export default function EditPDF({ tool }: { tool: Tool }) {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const isDrawing = useRef(false);
   const drawingId = useRef<string | null>(null);
+  const imageDataCache = useRef<Record<number, ImageData>>({});
 
   const page = pages[pageIndex];
   const elements = elementsByPage[pageIndex] || [];
@@ -130,6 +174,70 @@ export default function EditPDF({ tool }: { tool: Tool }) {
     setElementsByPage((prev) => ({ ...prev, [pageIndex]: (prev[pageIndex] || []).filter((el) => el.id !== id) }));
     setSelectedId(null);
   }, [pageIndex]);
+
+  const getPageImageData = useCallback(async (idx: number): Promise<ImageData | null> => {
+    if (imageDataCache.current[idx]) return imageDataCache.current[idx];
+    const pData = pages[idx];
+    if (!pData) return null;
+    const img = new window.Image();
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error("Failed to load page image"));
+      img.src = pData.dataUrl;
+    });
+    const canvas = document.createElement("canvas");
+    canvas.width = pData.width;
+    canvas.height = pData.height;
+    const ctx = canvas.getContext("2d")!;
+    ctx.drawImage(img, 0, 0);
+    const data = ctx.getImageData(0, 0, pData.width, pData.height);
+    imageDataCache.current[idx] = data;
+    return data;
+  }, [pages]);
+
+  // Replace existing PDF text: cover it with a sampled background patch
+  // and drop in an editable text element matching its size/color.
+  const handleEditTextClick = useCallback(async (pos: { x: number; y: number }) => {
+    if (!page) return;
+    const region = page.textItems.find(
+      (t) => pos.x >= t.x && pos.x <= t.x + t.width && pos.y >= t.y && pos.y <= t.y + t.height
+    );
+    if (!region) return;
+
+    const imageData = await getPageImageData(pageIndex);
+    const { bg, text } = imageData
+      ? sampleRegionColors(imageData, region)
+      : { bg: "#ffffff", text: "#000000" };
+
+    const padding = 1;
+    const coverId = generateId();
+    addElement({
+      id: coverId,
+      type: "rect",
+      x: region.x - padding,
+      y: region.y - padding,
+      width: region.width + padding * 2,
+      height: region.height + padding * 2,
+      color: bg,
+    });
+
+    const textId = generateId();
+    const fontSize = Math.max(6, region.height * 0.85);
+    const newEl: EditElement = {
+      id: textId,
+      type: "text",
+      x: region.x,
+      y: region.y,
+      width: Math.max(region.width, 60),
+      fontSize,
+      color: text,
+      text: region.text,
+    };
+    addElement(newEl);
+    setActiveTool("select");
+    setSelectedId(textId);
+    setEditingText(newEl);
+  }, [page, pageIndex, getPageImageData, addElement]);
 
   const handleFilesChange = async (f: UploadedFile[]) => {
     setFiles(f);
@@ -154,12 +262,29 @@ export default function EditPDF({ tool }: { tool: Tool }) {
         canvas.height = viewport.height;
         const ctx = canvas.getContext("2d")!;
         await pdfPage.render({ canvas, canvasContext: ctx, viewport }).promise;
+
+        const textContent = await pdfPage.getTextContent();
+        const textItems: TextRegion[] = [];
+        for (const item of textContent.items) {
+          if (!("str" in item) || !item.str.trim()) continue;
+          const tx = item.transform;
+          const p1 = viewport.convertToViewportPoint(tx[4], tx[5]);
+          const p2 = viewport.convertToViewportPoint(tx[4] + item.width, tx[5] + item.height);
+          const x = Math.min(p1[0], p2[0]);
+          const y = Math.min(p1[1], p2[1]);
+          const width = Math.abs(p2[0] - p1[0]);
+          const height = Math.abs(p2[1] - p1[1]);
+          if (width <= 0 || height <= 0) continue;
+          textItems.push({ text: item.str, x, y, width, height });
+        }
+
         newPages.push({
           dataUrl: canvas.toDataURL(),
           width: viewport.width,
           height: viewport.height,
           pdfWidth: pdfViewport.width,
           pdfHeight: pdfViewport.height,
+          textItems,
         });
       }
       setPages(newPages);
@@ -177,6 +302,11 @@ export default function EditPDF({ tool }: { tool: Tool }) {
     const stage = e.target.getStage();
     const pos = stage?.getPointerPosition();
     if (!pos) return;
+
+    if (activeTool === "edittext") {
+      void handleEditTextClick(pos);
+      return;
+    }
 
     const id = generateId();
     let el: EditElement;
@@ -412,7 +542,7 @@ export default function EditPDF({ tool }: { tool: Tool }) {
   return (
     <div className="space-y-6">
       {pages.length === 0 && (
-        <UploadZone accept={ACCEPTED_PDF_TYPES} multiple={false} onFilesChange={handleFilesChange} title="Upload PDF to edit" description="Add text, images, shapes, highlights, whiteout and drawings" />
+        <UploadZone accept={ACCEPTED_PDF_TYPES} multiple={false} onFilesChange={handleFilesChange} title="Upload PDF to edit" description="Edit existing text, or add text, images, shapes, highlights, whiteout and drawings" />
       )}
 
       {loading && (
@@ -423,6 +553,11 @@ export default function EditPDF({ tool }: { tool: Tool }) {
 
       {pages.length > 0 && page && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+          {activeTool === "edittext" && (
+            <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-xl p-3 text-xs text-blue-700 dark:text-blue-400">
+              ℹ️ Click on any line of text to replace it. We cover the original with a matching background patch and drop in an editable text box you can retype, move or resize.
+            </div>
+          )}
           {/* Toolbar */}
           <div className="bg-card border border-border rounded-2xl p-3 flex flex-wrap items-center gap-2">
             {TOOLS.map(({ id, label, icon: Icon }) => (

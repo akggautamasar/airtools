@@ -81,7 +81,7 @@ export const ALL_TOOLS: Tool[] = [
   { slug: "json-formatter", name: "JSON Formatter", description: "Format, validate and minify JSON with instant error reporting.", category: "utility", icon: "Braces", color: "text-blue-500", tags: ["json", "format", "validate", "minify"], new: true },
   { slug: "base64-encoder", name: "Base64 Encoder", description: "Encode text to Base64 or decode Base64 back to text instantly.", category: "utility", icon: "ArrowDownUp", color: "text-blue-500", tags: ["base64", "encode", "decode"], new: true },
   { slug: "hash-generator", name: "Hash Generator", description: "Generate SHA-1, SHA-256, SHA-384 and SHA-512 hashes from any text.", category: "utility", icon: "Hash", color: "text-blue-500", tags: ["hash", "sha256", "checksum", "security"], new: true },
-  { slug: "emrs-spr-maker", name: "EMRS SPR Maker", description: "Fill the EMRS Special Performance Report (11/22/33 months) form with handwritten-style entries, green tick marks, and your uploaded signature, name & date.", category: "utility", icon: "FileSignature", color: "text-blue-500", tags: ["emrs", "spr", "performance report", "form", "probation"], new: true },
+  { slug: "emrs-spr-maker", name: "EMRS SPR Maker", description: "Fill the EMRS Special Performance Report (11/22/33 months) form with handwritten-style entries, green tick marks, and your uploaded signature, name & date. Also supports bulk generation for multiple employees via Excel.", category: "utility", icon: "FileSignature", color: "text-blue-500", tags: ["emrs", "spr", "performance report", "form", "probation", "bulk"], new: true },
 ];
 
 export const TOOL_CATEGORIES = [

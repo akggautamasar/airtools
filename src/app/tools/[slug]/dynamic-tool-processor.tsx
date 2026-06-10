@@ -32,6 +32,7 @@ const BarcodeGenerator = dynamic(() => import("@/components/tools/processors/bar
 const ColorExtractor = dynamic(() => import("@/components/tools/processors/color-extractor"), { loading: () => <ToolLoader /> });
 const GenericPDFTool = dynamic(() => import("@/components/tools/processors/generic-pdf-tool"), { loading: () => <ToolLoader /> });
 const EditPDF = dynamic(() => import("@/components/tools/processors/edit-pdf"), { ssr: false, loading: () => <ToolLoader /> });
+const OCRPDF = dynamic(() => import("@/components/tools/processors/ocr-pdf"), { loading: () => <ToolLoader /> });
 const GenericImageTool = dynamic(() => import("@/components/tools/processors/generic-image-tool"), { loading: () => <ToolLoader /> });
 
 function ToolLoader() {
@@ -57,6 +58,7 @@ const toolMap: Record<string, React.ComponentType<{ tool: Tool }>> = {
   "remove-annotations": RemoveAnnotations,
   "rename-pdf": RenamePDF,
   "edit-pdf": EditPDF,
+  "ocr-pdf": OCRPDF,
   "image-to-pdf": ImageToPDF,
   "jpg-to-pdf": ImageToPDF,
   "upscale-image": UpscaleImage,

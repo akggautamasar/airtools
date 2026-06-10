@@ -33,6 +33,7 @@ interface EditElement {
   opacity?: number;
   rotation?: number;
   src?: string;
+  origin?: { x: number; y: number };
 }
 
 interface PageData {
@@ -168,7 +169,7 @@ export default function EditPDF({ tool }: { tool: Tool }) {
     setLoading(false);
   };
 
-  const handleStageMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
+  const handleStageMouseDown = (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
     if (activeTool === "select" || activeTool === "image") {
       if (e.target === e.target.getStage()) setSelectedId(null);
       return;
@@ -201,7 +202,7 @@ export default function EditPDF({ tool }: { tool: Tool }) {
     addElement(el);
   };
 
-  const handleStageMouseMove = (e: Konva.KonvaEventObject<MouseEvent>) => {
+  const handleStageMouseMove = (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
     if (!isDrawing.current || !drawingId.current) return;
     const stage = e.target.getStage();
     const pos = stage?.getPointerPosition();
@@ -216,15 +217,13 @@ export default function EditPDF({ tool }: { tool: Tool }) {
       const pts = current.points || [0, 0, 0, 0];
       updateElement(id, { points: [pts[0], pts[1], pos.x, pos.y] });
     } else if (current.type === "circle") {
-      const startX = current.x - (current.width || 0) / 2 + (current.x - (current.x - (current.width || 0) / 2)); // placeholder, recomputed below
-      void startX;
-      const origin = (current as EditElement & { _origin?: { x: number; y: number } })._origin || { x: current.x, y: current.y };
+      const origin = current.origin || { x: current.x, y: current.y };
       updateElement(id, {
         x: (origin.x + pos.x) / 2,
         y: (origin.y + pos.y) / 2,
         width: Math.abs(pos.x - origin.x),
         height: Math.abs(pos.y - origin.y),
-        ...({ _origin: origin } as Record<string, unknown>),
+        origin,
       });
     } else {
       updateElement(id, { width: pos.x - current.x, height: pos.y - current.y });
@@ -496,8 +495,11 @@ export default function EditPDF({ tool }: { tool: Tool }) {
                 width={page.width}
                 height={page.height}
                 onMouseDown={handleStageMouseDown}
-                onMousemove={handleStageMouseMove}
-                onMouseup={handleStageMouseUp}
+                onMouseMove={handleStageMouseMove}
+                onMouseUp={handleStageMouseUp}
+                onTouchStart={handleStageMouseDown}
+                onTouchMove={handleStageMouseMove}
+                onTouchEnd={handleStageMouseUp}
                 className="bg-white shadow-md rounded-lg overflow-hidden"
               >
                 <Layer>

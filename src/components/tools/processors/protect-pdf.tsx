@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { UploadZone } from "@/components/tools/upload-zone";
 import { UploadedFile, Tool } from "@/types";
 import { downloadBlob, formatFileSize, ACCEPTED_PDF_TYPES } from "@/lib/utils";
-import { PDFDocument } from "pdf-lib";
+import { PDFDocument } from "pdf-lib-plus-encrypt";
 
 export default function ProtectPDF({ tool }: { tool: Tool }) {
   const [files, setFiles] = useState<UploadedFile[]>([]);
@@ -29,9 +29,8 @@ export default function ProtectPDF({ tool }: { tool: Tool }) {
     const f = files[0];
     try {
       const bytes = await f.file.arrayBuffer();
-      const doc = await PDFDocument.load(bytes);
-      // pdf-lib doesn't support encryption natively; we'll add metadata indicating it's protected
-      // and save with a note. For full encryption, a server-side solution is needed.
+      const doc = await PDFDocument.load(bytes, { ignoreEncryption: true });
+      await doc.encrypt({ userPassword: password, ownerPassword: password });
       const out = await doc.save();
       const blob = new Blob([out.buffer as ArrayBuffer], { type: "application/pdf" });
       setResult({ blob, name: f.name });
@@ -42,7 +41,7 @@ export default function ProtectPDF({ tool }: { tool: Tool }) {
   return (
     <div className="space-y-6">
       <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 text-sm text-amber-700 dark:text-amber-400">
-        Note: Full PDF encryption requires server-side processing. This tool adds basic protection metadata.
+        Your PDF will be encrypted and require this password to open. Keep it safe — it can&apos;t be recovered if lost.
       </div>
       <UploadZone accept={ACCEPTED_PDF_TYPES} multiple={false} onFilesChange={setFiles} title="Upload PDF to protect" />
       {files.length > 0 && (

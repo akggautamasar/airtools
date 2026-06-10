@@ -1,8 +1,8 @@
 "use client";
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Download, Loader2, FileSignature, ChevronLeft, ChevronRight, CheckCircle2, Upload, X } from "lucide-react";
-import { PDFDocument, PDFFont, PDFPage, rgb, StandardFonts } from "pdf-lib";
+import { Download, Loader2, FileSignature, ChevronLeft, ChevronRight, CheckCircle2, Upload, X, Check, PenLine } from "lucide-react";
+import { PDFDocument, PDFFont, PDFImage, PDFPage, rgb, StandardFonts } from "pdf-lib";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -104,7 +104,25 @@ const PART3_ROWS = [
   "Would be discharged / terminated from Government service [here give reasons for recommending this course of action].",
 ];
 
-type ImageKey = "signature" | "name" | "date";
+// All fonts are real handwriting typefaces by the Indian Type Foundry (OFL licensed).
+const HAND_FONTS = [
+  { id: "kalam", name: "Kalam", file: "Kalam-Regular.ttf", family: "SprKalam" },
+  { id: "kalam-light", name: "Kalam Light", file: "Kalam-Light.ttf", family: "SprKalamLight" },
+  { id: "kalam-bold", name: "Kalam Bold", file: "Kalam-Bold.ttf", family: "SprKalamBold" },
+  { id: "tillana", name: "Tillana", file: "Tillana-Regular.ttf", family: "SprTillana" },
+  { id: "tillana-medium", name: "Tillana Medium", file: "Tillana-Medium.ttf", family: "SprTillanaMedium" },
+];
+
+const FONT_FACE_CSS = HAND_FONTS.map(
+  (f) => `@font-face { font-family: "${f.family}"; src: url("/fonts/${f.file}") format("truetype"); font-display: swap; }`
+).join("\n");
+
+const INK_COLORS = [
+  { id: "blue", name: "Blue pen", value: rgb(0.1, 0.15, 0.55), css: "#1a2690" },
+  { id: "black", name: "Black pen", value: rgb(0.12, 0.12, 0.14), css: "#1f1f24" },
+];
+
+type ImageKey = "signature" | "name" | "date" | "block" | "tick";
 interface ImageField {
   blob: Blob | null;
   preview: string;
@@ -115,7 +133,11 @@ const IMAGE_FIELD_LABELS: Record<ImageKey, string> = {
   signature: "Signature image",
   name: "Name (handwritten) image",
   date: "Date image",
+  block: "Complete signature block image",
+  tick: "Tick mark image",
 };
+
+const EMPTY_IMAGE: ImageField = { blob: null, preview: "", processing: false };
 
 async function fileToPng(file: File, removeBg: boolean): Promise<Blob> {
   if (removeBg) {
@@ -128,6 +150,12 @@ async function fileToPng(file: File, removeBg: boolean): Promise<Blob> {
   canvas.height = bitmap.height;
   canvas.getContext("2d")!.drawImage(bitmap, 0, 0);
   return canvasToBlob(canvas, "image/png");
+}
+
+// The subset fonts cover Latin-1; strip anything they can't render.
+function sanitize(text: string): string {
+  // eslint-disable-next-line no-control-regex
+  return text.replace(/[^\x20-\x7E -ÿ‐-’\n\r\t]/g, "");
 }
 
 // Word-wraps text to fit within maxWidth, respecting explicit line breaks.
@@ -159,11 +187,17 @@ export default function EMRSSprMaker({ tool }: { tool: Tool }) {
   const [part1, setPart1] = useState<Record<string, string>>({});
   const [ratings, setRatings] = useState<Record<string, number>>({});
   const [comments, setComments] = useState("");
+  const [handFont, setHandFont] = useState(HAND_FONTS[0].id);
+  const [inkColor, setInkColor] = useState(INK_COLORS[0].id);
+  const [tickMode, setTickMode] = useState<"drawn" | "image">("drawn");
+  const [sigMode, setSigMode] = useState<"separate" | "block">("separate");
   const [removeBg, setRemoveBg] = useState(true);
   const [images, setImages] = useState<Record<ImageKey, ImageField>>({
-    signature: { blob: null, preview: "", processing: false },
-    name: { blob: null, preview: "", processing: false },
-    date: { blob: null, preview: "", processing: false },
+    signature: EMPTY_IMAGE,
+    name: EMPTY_IMAGE,
+    date: EMPTY_IMAGE,
+    block: EMPTY_IMAGE,
+    tick: EMPTY_IMAGE,
   });
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
@@ -172,6 +206,9 @@ export default function EMRSSprMaker({ tool }: { tool: Tool }) {
   const setField = (key: string, value: string) => setPart1((p) => ({ ...p, [key]: value }));
   const setRating = (key: string, idx: number) =>
     setRatings((r) => ({ ...r, [key]: r[key] === idx ? -1 : idx }));
+
+  const selectedFont = HAND_FONTS.find((f) => f.id === handFont) || HAND_FONTS[0];
+  const selectedInk = INK_COLORS.find((c) => c.id === inkColor) || INK_COLORS[0];
 
   const handleImageUpload = async (key: ImageKey, file: File | null) => {
     if (!file) return;
@@ -187,7 +224,7 @@ export default function EMRSSprMaker({ tool }: { tool: Tool }) {
   };
 
   const removeImage = (key: ImageKey) => {
-    setImages((p) => ({ ...p, [key]: { blob: null, preview: "", processing: false } }));
+    setImages((p) => ({ ...p, [key]: EMPTY_IMAGE }));
   };
 
   const handleGenerate = async () => {
@@ -196,18 +233,30 @@ export default function EMRSSprMaker({ tool }: { tool: Tool }) {
     setResult(null);
     try {
       const doc = await PDFDocument.create();
+      const fontkit = (await import("@pdf-lib/fontkit")).default;
+      doc.registerFontkit(fontkit);
+
       const helv = await doc.embedFont(StandardFonts.Helvetica);
       const helvBold = await doc.embedFont(StandardFonts.HelveticaBold);
       const helvOblique = await doc.embedFont(StandardFonts.HelveticaOblique);
       const helvBoldOblique = await doc.embedFont(StandardFonts.HelveticaBoldOblique);
 
+      const fontRes = await fetch(`/fonts/${selectedFont.file}`);
+      if (!fontRes.ok) throw new Error("Could not load the handwriting font");
+      const hand = await doc.embedFont(await fontRes.arrayBuffer(), { subset: true });
+
       const PAGE_W = 595.28;
       const PAGE_H = 841.89;
       const MARGIN = 36;
       const CONTENT_W = PAGE_W - MARGIN * 2;
-      const INK = rgb(0.07, 0.13, 0.6); // blue pen for typed-in entries
-      const TICK = rgb(0.05, 0.45, 0.1); // green pen for tick marks
+      const INK = selectedInk.value;
+      const TICK = rgb(0.05, 0.45, 0.1); // green pen
       const BORDER = rgb(0.15, 0.15, 0.15);
+
+      let tickImage: PDFImage | null = null;
+      if (tickMode === "image" && images.tick.blob) {
+        tickImage = await doc.embedPng(new Uint8Array(await images.tick.blob.arrayBuffer()));
+      }
 
       let page: PDFPage = doc.addPage([PAGE_W, PAGE_H]);
       let y = PAGE_H - MARGIN;
@@ -224,14 +273,44 @@ export default function EMRSSprMaker({ tool }: { tool: Tool }) {
         page.drawText(text, { x: (PAGE_W - w) / 2, y: y - size, size, font });
         y -= size + 6;
       };
-      const drawLines = (lines: string[], x: number, topY: number, font: PDFFont, size: number, color: ReturnType<typeof rgb>, lh: number) => {
+      const drawLines = (lines: string[], x: number, topY: number, font: PDFFont, size: number, color: ReturnType<typeof rgb>, lh: number, jitter = false) => {
         lines.forEach((line, i) => {
-          if (line) page.drawText(line, { x, y: topY - (i + 1) * lh + (lh - size) * 0.3, size, font, color });
+          if (!line) return;
+          const jx = jitter ? (Math.random() - 0.5) * 1.6 : 0;
+          const jy = jitter ? (Math.random() - 0.5) * 1.4 : 0;
+          page.drawText(line, { x: x + jx, y: topY - (i + 1) * lh + (lh - size) * 0.3 + jy, size, font, color });
         });
       };
+      // Hand-drawn looking tick: a short down-stroke meeting a long curved up-stroke,
+      // built from small jittered segments so no two ticks are identical.
       const drawCheck = (cx: number, cy: number, size: number) => {
-        page.drawLine({ start: { x: cx - size * 0.45, y: cy + size * 0.05 }, end: { x: cx - size * 0.08, y: cy - size * 0.4 }, thickness: 1.5, color: TICK });
-        page.drawLine({ start: { x: cx - size * 0.08, y: cy - size * 0.4 }, end: { x: cx + size * 0.55, y: cy + size * 0.5 }, thickness: 1.5, color: TICK });
+        if (tickImage) {
+          const scale = Math.min((size * 2) / tickImage.width, (size * 1.4) / tickImage.height);
+          const w = tickImage.width * scale;
+          const h = tickImage.height * scale;
+          page.drawImage(tickImage, { x: cx - w / 2, y: cy - h / 2, width: w, height: h });
+          return;
+        }
+        const s = size * (0.9 + Math.random() * 0.3);
+        const rot = (Math.random() - 0.5) * 0.25;
+        const jit = () => (Math.random() - 0.5) * s * 0.06;
+        const pt = (px: number, py: number) => ({
+          x: cx + (px * Math.cos(rot) - py * Math.sin(rot)) * s + jit(),
+          y: cy + (px * Math.sin(rot) + py * Math.cos(rot)) * s + jit(),
+        });
+        // Key points of a natural tick, in unit space.
+        const path = [pt(-0.5, 0.05), pt(-0.28, -0.22), pt(-0.1, -0.42), pt(0.05, -0.28), pt(0.3, 0.1), pt(0.58, 0.5)];
+        for (let i = 0; i < path.length - 1; i++) {
+          const thickness = 1.2 + Math.random() * 0.7;
+          page.drawLine({ start: path[i], end: path[i + 1], thickness, color: TICK });
+          // Double-stroke for an inked feel.
+          page.drawLine({
+            start: { x: path[i].x + 0.4, y: path[i].y - 0.3 },
+            end: { x: path[i + 1].x + 0.4, y: path[i + 1].y - 0.3 },
+            thickness: thickness * 0.6,
+            color: TICK,
+          });
+        }
       };
 
       // ---------- Header ----------
@@ -249,13 +328,13 @@ export default function EMRSSprMaker({ tool }: { tool: Tool }) {
       const LABEL_W = 250;
       const VAL_W = CONTENT_W - NO_W - LABEL_W;
       const labelSize = 8.5;
-      const valueSize = 10;
-      const lh1 = 11;
+      const valueSize = 11;
+      const lh1 = 13;
       const pad = 4;
 
       PART1_FIELDS.forEach((f, i) => {
         const labelLines = wrapText(f.label, helv, labelSize, LABEL_W - pad * 2);
-        const valueLines = wrapText(part1[f.key] || "", helvOblique, valueSize, VAL_W - pad * 2 - 10);
+        const valueLines = wrapText(sanitize(part1[f.key] || ""), hand, valueSize, VAL_W - pad * 2 - 10);
         const rowH = Math.max(labelLines.length, valueLines.length) * lh1 + pad * 2;
         ensure(rowH);
         page.drawRectangle({ x: MARGIN, y: y - rowH, width: NO_W, height: rowH, borderColor: BORDER, borderWidth: 0.75 });
@@ -264,7 +343,7 @@ export default function EMRSSprMaker({ tool }: { tool: Tool }) {
         page.drawText(`${i + 1}.`, { x: MARGIN + 5, y: y - lh1 + 1, size: labelSize, font: helv });
         drawLines(labelLines, MARGIN + NO_W + pad, y, helv, labelSize, rgb(0, 0, 0), lh1);
         page.drawText(":", { x: MARGIN + NO_W + LABEL_W + pad, y: y - lh1 + 1, size: 10, font: helv });
-        drawLines(valueLines, MARGIN + NO_W + LABEL_W + pad + 10, y, helvOblique, valueSize, INK, lh1);
+        drawLines(valueLines, MARGIN + NO_W + LABEL_W + pad + 10, y, hand, valueSize, INK, lh1, true);
         y -= rowH;
       });
 
@@ -336,51 +415,63 @@ export default function EMRSSprMaker({ tool }: { tool: Tool }) {
       drawLines(introLines, MARGIN, y, helvOblique, 8.5, rgb(0.25, 0.25, 0.25), 11);
       y -= introLines.length * 11 + 4;
 
-      const commentLines = wrapText(comments, helvOblique, 10, CONTENT_W - 8);
-      const commentBoxH = Math.max(commentLines.length * 13 + 10, 50);
+      const commentLines = wrapText(sanitize(comments), hand, 11, CONTENT_W - 12);
+      const commentBoxH = Math.max(commentLines.length * 15 + 12, 50);
       ensure(commentBoxH);
       page.drawRectangle({ x: MARGIN, y: y - commentBoxH, width: CONTENT_W, height: commentBoxH, borderColor: BORDER, borderWidth: 0.75 });
-      drawLines(commentLines, MARGIN + 4, y - 4, helvOblique, 10, INK, 13);
+      drawLines(commentLines, MARGIN + 6, y - 4, hand, 11, INK, 15, true);
       y -= commentBoxH + 16;
 
       // Signature / Name / Date block (right-aligned)
-      ensure(110);
-      const blockX = PAGE_W - MARGIN - 200;
-      const sigField = images.signature;
-      let sigH = 0;
-      if (sigField.blob) {
-        const bytes = new Uint8Array(await sigField.blob.arrayBuffer());
-        const img = await doc.embedPng(bytes);
-        const scale = Math.min(150 / img.width, 50 / img.height);
+      if (sigMode === "block" && images.block.blob) {
+        const img = await doc.embedPng(new Uint8Array(await images.block.blob.arrayBuffer()));
+        const maxW = 240;
+        const maxH = 150;
+        const scale = Math.min(maxW / img.width, maxH / img.height);
         const w = img.width * scale;
         const h = img.height * scale;
-        sigH = h;
-        page.drawImage(img, { x: blockX + (200 - w) / 2, y: y - h, width: w, height: h });
-      }
-      y -= Math.max(sigH, 30) + 4;
-      page.drawLine({ start: { x: blockX, y }, end: { x: blockX + 200, y }, thickness: 0.75, color: BORDER });
-      y -= 12;
-      const sigLabel = "Signature of Principal";
-      page.drawText(sigLabel, { x: blockX + (200 - helv.widthOfTextAtSize(sigLabel, 9)) / 2, y, size: 9, font: helv });
-      y -= 18;
-
-      const drawNamedLine = async (label: string, key: ImageKey) => {
-        page.drawText(label, { x: blockX, y, size: 9, font: helv });
-        const field = images[key];
-        const labelW = helv.widthOfTextAtSize(label, 9);
-        if (field.blob) {
-          const bytes = new Uint8Array(await field.blob.arrayBuffer());
+        ensure(h + 10);
+        page.drawImage(img, { x: PAGE_W - MARGIN - 20 - w, y: y - h, width: w, height: h });
+        y -= h + 14;
+      } else {
+        ensure(110);
+        const blockX = PAGE_W - MARGIN - 200;
+        const sigField = images.signature;
+        let sigH = 0;
+        if (sigField.blob) {
+          const bytes = new Uint8Array(await sigField.blob.arrayBuffer());
           const img = await doc.embedPng(bytes);
-          const scale = Math.min((200 - labelW - 4) / img.width, 18 / img.height);
+          const scale = Math.min(150 / img.width, 50 / img.height);
           const w = img.width * scale;
           const h = img.height * scale;
-          page.drawImage(img, { x: blockX + labelW + 4, y: y - h + 6, width: w, height: h });
+          sigH = h;
+          page.drawImage(img, { x: blockX + (200 - w) / 2, y: y - h, width: w, height: h });
         }
-        page.drawLine({ start: { x: blockX + labelW + 2, y: y - 2 }, end: { x: blockX + 200, y: y - 2 }, thickness: 0.5, color: BORDER });
+        y -= Math.max(sigH, 30) + 4;
+        page.drawLine({ start: { x: blockX, y }, end: { x: blockX + 200, y }, thickness: 0.75, color: BORDER });
+        y -= 12;
+        const sigLabel = "Signature of Principal";
+        page.drawText(sigLabel, { x: blockX + (200 - helv.widthOfTextAtSize(sigLabel, 9)) / 2, y, size: 9, font: helv });
         y -= 18;
-      };
-      await drawNamedLine("Name:", "name");
-      await drawNamedLine("Date:", "date");
+
+        const drawNamedLine = async (label: string, key: ImageKey) => {
+          page.drawText(label, { x: blockX, y, size: 9, font: helv });
+          const field = images[key];
+          const labelW = helv.widthOfTextAtSize(label, 9);
+          if (field.blob) {
+            const bytes = new Uint8Array(await field.blob.arrayBuffer());
+            const img = await doc.embedPng(bytes);
+            const scale = Math.min((200 - labelW - 4) / img.width, 18 / img.height);
+            const w = img.width * scale;
+            const h = img.height * scale;
+            page.drawImage(img, { x: blockX + labelW + 4, y: y - h + 6, width: w, height: h });
+          }
+          page.drawLine({ start: { x: blockX + labelW + 2, y: y - 2 }, end: { x: blockX + 200, y: y - 2 }, thickness: 0.5, color: BORDER });
+          y -= 18;
+        };
+        await drawNamedLine("Name:", "name");
+        await drawNamedLine("Date:", "date");
+      }
 
       // ---------- PART-III ----------
       y -= 10;
@@ -422,12 +513,42 @@ export default function EMRSSprMaker({ tool }: { tool: Tool }) {
   const steps = [
     { n: 1, label: "Probationer Details" },
     { n: 2, label: "Performance Grade" },
-    { n: 3, label: "Comments & Signature" },
+    { n: 3, label: "Handwriting & Signature" },
     { n: 4, label: "Generate" },
   ];
 
+  const uploadTile = (key: ImageKey, tall = false) => (
+    <div
+      className={`relative rounded-xl border border-dashed border-border ${tall ? "h-36" : "h-24"} flex items-center justify-center overflow-hidden`}
+      style={{
+        backgroundImage: images[key].preview ? "repeating-conic-gradient(#e5e7eb 0% 25%, #ffffff 0% 50%)" : undefined,
+        backgroundSize: "16px 16px",
+      }}
+    >
+      {images[key].processing ? (
+        <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+      ) : images[key].preview ? (
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={images[key].preview} alt={IMAGE_FIELD_LABELS[key]} className="max-h-full max-w-full object-contain p-1" />
+          <button onClick={() => removeImage(key)} className="absolute top-1 right-1 bg-background/80 rounded-full p-1 border border-border">
+            <X className="w-3 h-3" />
+          </button>
+        </>
+      ) : (
+        <label className="flex flex-col items-center gap-1 text-xs text-muted-foreground cursor-pointer">
+          <Upload className="w-4 h-4" />
+          Upload
+          <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(key, e.target.files?.[0] || null)} />
+        </label>
+      )}
+    </div>
+  );
+
   return (
     <div className="space-y-6">
+      <style dangerouslySetInnerHTML={{ __html: FONT_FACE_CSS }} />
+
       <div className="flex items-center justify-between gap-2 overflow-x-auto pb-1">
         {steps.map((s, i) => (
           <div key={s.n} className="flex items-center gap-2 shrink-0">
@@ -447,12 +568,12 @@ export default function EMRSSprMaker({ tool }: { tool: Tool }) {
 
       {step === 1 && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-card border border-border rounded-2xl p-6 space-y-4">
-          <p className="text-sm text-muted-foreground">PART-I — Probationer details, exactly as they appear on the EMRS Special Performance Report (11/22/33 months) form.</p>
+          <p className="text-sm text-muted-foreground">PART-I — Probationer details, exactly as they appear on the EMRS Special Performance Report (11/22/33 months) form. They are written onto the form in your chosen handwriting style.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {PART1_FIELDS.map((f) => (
               <div key={f.key} className={f.key === "training" || f.key === "extensions" ? "sm:col-span-2" : ""}>
                 <Label className="text-xs">{f.label}</Label>
-                <Input value={part1[f.key] || ""} onChange={(e) => setField(f.key, e.target.value)} className="mt-1" />
+                <Input value={part1[f.key] || ""} onChange={(e) => setField(f.key, e.target.value)} className="mt-1" style={{ fontFamily: selectedFont.family, color: selectedInk.css }} />
               </div>
             ))}
           </div>
@@ -461,7 +582,7 @@ export default function EMRSSprMaker({ tool }: { tool: Tool }) {
 
       {step === 2 && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-card border border-border rounded-2xl p-6 space-y-5">
-          <p className="text-sm text-muted-foreground">PART-II — Tap the rating that applies to each factor. The chosen rating is marked with a green tick on the form, just like a pen check.</p>
+          <p className="text-sm text-muted-foreground">PART-II — Tap the rating that applies to each factor. The chosen rating is marked on the form with a green pen tick (or your own uploaded tick image).</p>
           {PART2_SECTIONS.map((section) => (
             <div key={section.title} className="space-y-2">
               <h3 className="text-sm font-semibold text-foreground">{section.title}</h3>
@@ -496,60 +617,139 @@ export default function EMRSSprMaker({ tool }: { tool: Tool }) {
 
       {step === 3 && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+          <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
+            <div>
+              <Label>Handwriting style</Label>
+              <p className="text-xs text-muted-foreground mt-1">Real Indian handwriting fonts by the Indian Type Foundry. Your PART-I entries and comments are written in this style.</p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              {HAND_FONTS.map((f) => (
+                <button
+                  key={f.id}
+                  onClick={() => setHandFont(f.id)}
+                  className={`p-3 rounded-xl border-2 text-left transition-all ${
+                    handFont === f.id ? "border-primary bg-primary/5" : "border-border hover:border-primary/40"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-muted-foreground">{f.name}</span>
+                    {handFont === f.id && <Check className="w-3.5 h-3.5 text-primary" />}
+                  </div>
+                  <p className="text-lg leading-snug mt-1" style={{ fontFamily: f.family, color: selectedInk.css }}>
+                    EMRS Karanjiya 25/06/2024
+                  </p>
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <Label className="text-xs">Pen ink:</Label>
+              {INK_COLORS.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => setInkColor(c.id)}
+                  className={`px-3 py-1.5 rounded-lg border-2 text-xs font-medium flex items-center gap-2 transition-all ${
+                    inkColor === c.id ? "border-primary bg-primary/5" : "border-border hover:border-primary/40"
+                  }`}
+                >
+                  <span className="w-3 h-3 rounded-full" style={{ backgroundColor: c.css }} />
+                  {c.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="bg-card border border-border rounded-2xl p-6 space-y-3">
             <Label>Comments (general appraisal of the officer)</Label>
             <textarea
               value={comments}
               onChange={(e) => setComments(e.target.value)}
               rows={5}
-              placeholder="Write the narrative appraisal here — it will be added in a handwritten-style blue ink font."
-              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y"
+              placeholder="Write the narrative appraisal here — it will be written on the form in your chosen handwriting style."
+              className="w-full rounded-lg border border-input bg-background px-3 py-2 ring-offset-background placeholder:text-muted-foreground placeholder:font-sans placeholder:text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y text-base"
+              style={{ fontFamily: selectedFont.family, color: selectedInk.css }}
             />
           </div>
 
           <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
             <div>
-              <p className="font-medium text-sm">Signature, name &amp; date images</p>
+              <Label>Tick mark style</Label>
+              <p className="text-xs text-muted-foreground mt-1">Choose how the PART-II ratings are ticked on the form.</p>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setTickMode("drawn")}
+                className={`p-3 rounded-xl border-2 text-sm font-medium flex flex-col items-center gap-1 transition-all ${
+                  tickMode === "drawn" ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground hover:border-primary/40"
+                }`}
+              >
+                <Check className="w-5 h-5 text-green-600" />
+                Green pen tick (generated)
+              </button>
+              <button
+                onClick={() => setTickMode("image")}
+                className={`p-3 rounded-xl border-2 text-sm font-medium flex flex-col items-center gap-1 transition-all ${
+                  tickMode === "image" ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground hover:border-primary/40"
+                }`}
+              >
+                <Upload className="w-5 h-5" />
+                Upload my own tick image
+              </button>
+            </div>
+            {tickMode === "image" && (
+              <div className="max-w-[160px]">
+                <Label className="text-xs">{IMAGE_FIELD_LABELS.tick}</Label>
+                <div className="mt-1">{uploadTile("tick")}</div>
+              </div>
+            )}
+          </div>
+
+          <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
+            <div>
+              <p className="font-medium text-sm">Signature, name &amp; date</p>
               <p className="text-xs text-muted-foreground mt-1">
-                Upload a photo of your signature and your handwritten name &amp; date. We&apos;ll remove the background and place them onto the &quot;Signature of Principal / Name / Date&quot; line of the form.
+                Upload either three separate images, or one photo of your complete signed block (signature + name + date together, like a scan of the signed corner of the form).
               </p>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setSigMode("separate")}
+                className={`p-3 rounded-xl border-2 text-sm font-medium flex flex-col items-center gap-1 transition-all ${
+                  sigMode === "separate" ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground hover:border-primary/40"
+                }`}
+              >
+                <PenLine className="w-5 h-5" />
+                Separate signature, name &amp; date images
+              </button>
+              <button
+                onClick={() => setSigMode("block")}
+                className={`p-3 rounded-xl border-2 text-sm font-medium flex flex-col items-center gap-1 transition-all ${
+                  sigMode === "block" ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground hover:border-primary/40"
+                }`}
+              >
+                <FileSignature className="w-5 h-5" />
+                Complete signature block image
+              </button>
             </div>
             <label className="flex items-center gap-2 text-xs text-muted-foreground">
               <input type="checkbox" checked={removeBg} onChange={(e) => setRemoveBg(e.target.checked)} className="rounded" />
-              Automatically remove background from these images (on-device AI)
+              Automatically remove background from uploaded images (on-device AI) — untick if your image already has a transparent background
             </label>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {(Object.keys(IMAGE_FIELD_LABELS) as ImageKey[]).map((key) => (
-                <div key={key} className="space-y-2">
-                  <Label className="text-xs">{IMAGE_FIELD_LABELS[key]}</Label>
-                  <div
-                    className="relative rounded-xl border border-dashed border-border h-24 flex items-center justify-center overflow-hidden"
-                    style={{
-                      backgroundImage: images[key].preview ? "repeating-conic-gradient(#e5e7eb 0% 25%, #ffffff 0% 50%)" : undefined,
-                      backgroundSize: "16px 16px",
-                    }}
-                  >
-                    {images[key].processing ? (
-                      <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-                    ) : images[key].preview ? (
-                      <>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={images[key].preview} alt={IMAGE_FIELD_LABELS[key]} className="max-h-full max-w-full object-contain p-1" />
-                        <button onClick={() => removeImage(key)} className="absolute top-1 right-1 bg-background/80 rounded-full p-1 border border-border">
-                          <X className="w-3 h-3" />
-                        </button>
-                      </>
-                    ) : (
-                      <label className="flex flex-col items-center gap-1 text-xs text-muted-foreground cursor-pointer">
-                        <Upload className="w-4 h-4" />
-                        Upload
-                        <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(key, e.target.files?.[0] || null)} />
-                      </label>
-                    )}
+            {sigMode === "separate" ? (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {(["signature", "name", "date"] as ImageKey[]).map((key) => (
+                  <div key={key} className="space-y-2">
+                    <Label className="text-xs">{IMAGE_FIELD_LABELS[key]}</Label>
+                    {uploadTile(key)}
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label className="text-xs">{IMAGE_FIELD_LABELS.block}</Label>
+                {uploadTile("block", true)}
+                <p className="text-[11px] text-muted-foreground">The block is placed as-is at the &quot;Signature of Principal&quot; position — it should already contain the signature, name and date.</p>
+              </div>
+            )}
           </div>
         </motion.div>
       )}
@@ -557,7 +757,7 @@ export default function EMRSSprMaker({ tool }: { tool: Tool }) {
       {step === 4 && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
           <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-xl p-3 text-xs text-blue-700 dark:text-blue-400">
-            ℹ️ This generates a 3-page PDF with your PART-I details, PART-II ratings (green tick marks) and PART-III left blank for the confirmation committee. Print it, sign and submit.
+            ℹ️ This generates a 3-page PDF with your PART-I details and comments in real handwriting style, PART-II ratings ticked in green pen, your signature block, and PART-III left blank for the confirmation committee. Print it, sign if needed, and submit.
           </div>
           {error && <p className="text-sm text-red-500">{error}</p>}
           <Button onClick={handleGenerate} disabled={generating} size="lg" className="w-full" variant="gradient">

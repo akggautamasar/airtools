@@ -10,6 +10,17 @@ import { downloadBlob, formatFileSize, ACCEPTED_IMAGE_TYPES } from "@/lib/utils"
 
 type BgMode = "transparent" | "color" | "image";
 
+const REMOVE_BG_API_URL = process.env.NEXT_PUBLIC_REMOVE_BG_API_URL || "";
+
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error("Failed to read file"));
+    reader.readAsDataURL(file);
+  });
+}
+
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new window.Image();
@@ -78,6 +89,33 @@ export default function RemoveBackground({ tool }: { tool: Tool }) {
     setError("");
     setCutoutBlob(null);
     setCutoutUrl("");
+
+    if (REMOVE_BG_API_URL) {
+      setProgress("Removing background...");
+      try {
+        const dataUrl = await fileToDataUrl(files[0].file);
+        const res = await fetch(REMOVE_BG_API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ imageUrl: dataUrl }),
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => null);
+          throw new Error(err?.error || `Background removal failed (${res.status})`);
+        }
+
+        const blob = await res.blob();
+        setCutoutBlob(blob);
+        setCutoutUrl(URL.createObjectURL(blob));
+        setProcessing(false);
+        setProgress("");
+        return;
+      } catch (e) {
+        console.error("Server-side background removal failed, falling back to on-device:", e);
+      }
+    }
+
     setProgress("Loading model...");
     try {
       const { removeBackground } = await import("@imgly/background-removal");
@@ -145,7 +183,9 @@ export default function RemoveBackground({ tool }: { tool: Tool }) {
       {files.length > 0 && !cutoutBlob && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
           <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-xl p-3 text-xs text-blue-700 dark:text-blue-400">
-            ℹ️ Background removal runs entirely in your browser. The first run downloads an AI model (a few MB) and may take a moment.
+            {REMOVE_BG_API_URL
+              ? "ℹ️ Background removal runs on our fast servers — full resolution, no watermark, no HD paywall."
+              : "ℹ️ Background removal runs entirely in your browser. The first run downloads an AI model (a few MB) and may take a moment."}
           </div>
           {error && <p className="text-sm text-red-500">{error}</p>}
           <Button onClick={handleRemove} disabled={processing} size="lg" className="w-full" variant="gradient">

@@ -34,14 +34,14 @@ const RATING_LABELS = [
 ];
 const RATING_SHORT = ["Exceeds", "Fully meets", "Just meets", "Partially meets", "Does not meet"];
 
-const PART2_SECTIONS: { title: string; items: { no?: string; key?: string; label: string }[] }[] = [
+const PART2_SECTIONS: { title: string; items: { no?: string; key?: string; label: string; pageBreakAfter?: boolean }[] }[] = [
   {
     title: "I. Mental capacity",
     items: [
       { no: "1.", key: "mc1", label: "Efforts made to acquire knowledge relevant to job" },
       { no: "2.", key: "mc2", label: "Analytical ability" },
       { no: "3.", key: "mc3", label: "Power of grasping" },
-      { no: "4.", key: "mc4", label: "Spirit of inquiry" },
+      { no: "4.", key: "mc4", label: "Spirit of inquiry", pageBreakAfter: true },
       { no: "5.", label: "Power of expression" },
       { no: "(a)", key: "mc5a", label: "Oral" },
       { no: "(b)", key: "mc5b", label: "Written" },
@@ -81,7 +81,7 @@ const PART2_SECTIONS: { title: string; items: { no?: string; key?: string; label
       { no: "(b)", key: "ag2b", label: "Fellow officials" },
       { no: "(c)", key: "ag2c", label: "Superiors" },
       { no: "(d)", key: "ag2d", label: "Public" },
-      { no: "3.", key: "ag3", label: "Ability to inspire others" },
+      { no: "3.", key: "ag3", label: "Ability to inspire others", pageBreakAfter: true },
     ],
   },
   {
@@ -298,8 +298,8 @@ async function generateSprPdf(opts: {
   const VAL_W = CONTENT_W - NO_W - LABEL_W;
   const labelSize = 8.5;
   const valueSize = 11;
-  const lh1 = 13;
-  const pad = 4;
+  const lh1 = 14;
+  const pad = 4.5;
 
   PART1_FIELDS.forEach((f, i) => {
     const labelLines = wrapText(f.label, helv, labelSize, LABEL_W - pad * 2);
@@ -325,8 +325,8 @@ async function generateSprPdf(opts: {
 
   const LABEL_W2 = 248;
   const RATE_W = (CONTENT_W - LABEL_W2) / 5;
-  const headerSize = 7.5;
-  const headerLh = 9.5;
+  const headerSize = 8;
+  const headerLh = 10;
 
   // First page: "Performance Factor" + rating labels, then a (1)-(6) row.
   // Continuation pages repeat only the slim (1)-(6) row, like the original form.
@@ -362,8 +362,8 @@ async function generateSprPdf(opts: {
 
   drawPart2Header(true);
 
-  const itemSize = 10;
-  const itemLh = 14;
+  const itemSize = 10.5;
+  const itemLh = 15;
   const NO_INDENT = 22; // hanging indent: label text aligns after the item number
 
   // Draws one PART-II grid row: numbered label (hanging indent) + 5 rating cells.
@@ -389,7 +389,13 @@ async function generateSprPdf(opts: {
   PART2_SECTIONS.forEach((section) => {
     const spaceIdx = section.title.indexOf(" ");
     drawPart2Row(section.title.slice(0, spaceIdx), section.title.slice(spaceIdx + 1), helvBold);
-    section.items.forEach((item) => drawPart2Row(item.no, item.label, helv, item.key));
+    section.items.forEach((item) => {
+      drawPart2Row(item.no, item.label, helv, item.key);
+      if (item.pageBreakAfter) {
+        newPage();
+        drawPart2Header(false);
+      }
+    });
   });
 
   // ---------- Comments & signature ----------

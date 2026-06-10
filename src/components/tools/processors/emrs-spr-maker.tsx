@@ -34,62 +34,64 @@ const RATING_LABELS = [
 ];
 const RATING_SHORT = ["Exceeds", "Fully meets", "Just meets", "Partially meets", "Does not meet"];
 
-const PART2_SECTIONS: { title: string; items: { key: string; label: string }[] }[] = [
+const PART2_SECTIONS: { title: string; items: { no?: string; key?: string; label: string }[] }[] = [
   {
     title: "I. Mental capacity",
     items: [
-      { key: "mc1", label: "Efforts made to acquire knowledge relevant to job" },
-      { key: "mc2", label: "Analytical ability" },
-      { key: "mc3", label: "Power of grasping" },
-      { key: "mc4", label: "Spirit of inquiry" },
-      { key: "mc5a", label: "Power of expression - (a) Oral" },
-      { key: "mc5b", label: "Power of expression - (b) Written" },
-      { key: "mc6", label: "Sense of responsibility" },
-      { key: "mc7", label: "Ability to participate in discussions & seminars" },
+      { no: "1.", key: "mc1", label: "Efforts made to acquire knowledge relevant to job" },
+      { no: "2.", key: "mc2", label: "Analytical ability" },
+      { no: "3.", key: "mc3", label: "Power of grasping" },
+      { no: "4.", key: "mc4", label: "Spirit of inquiry" },
+      { no: "5.", label: "Power of expression" },
+      { no: "(a)", key: "mc5a", label: "Oral" },
+      { no: "(b)", key: "mc5b", label: "Written" },
+      { no: "6.", key: "mc6", label: "Sense of responsibility" },
+      { no: "7.", key: "mc7", label: "Ability to participate in discussions & seminars" },
     ],
   },
   {
     title: "II. Work Habits and attitudes",
     items: [
-      { key: "wh1", label: "Aptitude (Natural Ability)" },
-      { key: "wh2", label: "Interest in work" },
-      { key: "wh3", label: "Promptness" },
-      { key: "wh4", label: "Initiative" },
-      { key: "wh5", label: "Originality" },
-      { key: "wh6", label: "Self-reliance (Owns abilities)" },
-      { key: "wh7", label: "Manner of performance (whether methodical & orderly)" },
-      { key: "wh8", label: "Thoroughness" },
-      { key: "wh9", label: "Punctuality" },
-      { key: "wh10", label: "Resourcefulness" },
+      { no: "1.", key: "wh1", label: "Aptitude (Natural Ability)" },
+      { no: "2.", key: "wh2", label: "Interest in work" },
+      { no: "3.", key: "wh3", label: "Promptness" },
+      { no: "4.", key: "wh4", label: "Initiative" },
+      { no: "5.", key: "wh5", label: "Originality" },
+      { no: "6.", key: "wh6", label: "Self-reliance (Owns abilities)" },
+      { no: "7.", key: "wh7", label: "Manner of performance (Whether methodical & orderly)" },
+      { no: "8.", key: "wh8", label: "Thoroughness" },
+      { no: "9.", key: "wh9", label: "Punctuality" },
+      { no: "10.", key: "wh10", label: "Resourcefulness" },
     ],
   },
   {
     title: "III. Stability",
     items: [
-      { key: "st1", label: "Poise (Graceful & Balance position)" },
-      { key: "st2", label: "Fairness" },
-      { key: "st3", label: "Dependability" },
+      { no: "1.", key: "st1", label: "Poise (Graceful & Balance position)" },
+      { no: "2.", key: "st2", label: "Fairness" },
+      { no: "3.", key: "st3", label: "Dependability" },
     ],
   },
   {
     title: "IV. Ability to get along",
     items: [
-      { key: "ag1", label: "Tact" },
-      { key: "ag2a", label: "Dealings with - (a) Subordinates" },
-      { key: "ag2b", label: "Dealings with - (b) Fellow officials" },
-      { key: "ag2c", label: "Dealings with - (c) Superiors" },
-      { key: "ag2d", label: "Dealings with - (d) Public" },
-      { key: "ag3", label: "Ability to inspire others" },
+      { no: "1.", key: "ag1", label: "Tact" },
+      { no: "2.", label: "Dealings with" },
+      { no: "(a)", key: "ag2a", label: "Subordinates" },
+      { no: "(b)", key: "ag2b", label: "Fellow officials" },
+      { no: "(c)", key: "ag2c", label: "Superiors" },
+      { no: "(d)", key: "ag2d", label: "Public" },
+      { no: "3.", key: "ag3", label: "Ability to inspire others" },
     ],
   },
   {
     title: "V. Ability to manage",
     items: [
-      { key: "am1", label: "Quality of judgement" },
-      { key: "am2", label: "Decision making" },
-      { key: "am3", label: "Ability to plan and program" },
-      { key: "am4", label: "Direction and control" },
-      { key: "am5", label: "Ability to evaluate the work of individuals and projects or schemes" },
+      { no: "1.", key: "am1", label: "Quality of judgement" },
+      { no: "2.", key: "am2", label: "Decision making" },
+      { no: "3.", key: "am3", label: "Ability to plan and program" },
+      { no: "4.", key: "am4", label: "Direction and control" },
+      { no: "5.", key: "am5", label: "Ability to evaluate the work of individuals and projects or schemes" },
     ],
   },
   {
@@ -99,9 +101,9 @@ const PART2_SECTIONS: { title: string; items: { key: string; label: string }[] }
 ];
 
 const PART3_ROWS = [
-  "If firm retention / confirmation",
-  "Should be watched for a further period [here list out what improvements are required in the probationer and specify the period for which he is to be watched further]",
-  "Would be discharged / terminated from Government service [here give reasons for recommending this course of action].",
+  "1. If firm retention / confirmation",
+  "2. Should be watched for a further period [here list out what improvements are required in the probationer and specify the period for which he is to be watched further]",
+  "3. Would be discharged / terminated from Government service [here give reasons for recommending this course of action].",
 ];
 
 // All fonts are real handwriting typefaces by the Indian Type Foundry (OFL licensed).
@@ -324,8 +326,8 @@ async function generateSprPdf(opts: {
 
   const LABEL_W2 = 248;
   const RATE_W = (CONTENT_W - LABEL_W2) / 5;
-  const headerSize = 6;
-  const headerLh = 7.5;
+  const headerSize = 7;
+  const headerLh = 9;
 
   const drawPart2Header = () => {
     const headerLines = RATING_LABELS.map((l) => wrapText(l, helvBold, headerSize, RATE_W - 4));
@@ -344,30 +346,34 @@ async function generateSprPdf(opts: {
 
   drawPart2Header();
 
-  const itemSize = 7.5;
-  const itemLh = 9;
+  const itemSize = 10;
+  const itemLh = 14;
+  const itemIndent = 14;
 
   PART2_SECTIONS.forEach((section) => {
-    const sectionRowH = 14;
+    const sectionRowH = 18;
     ensure(sectionRowH);
     page.drawRectangle({ x: MARGIN, y: y - sectionRowH, width: CONTENT_W, height: sectionRowH, borderColor: BORDER, borderWidth: 0.75, color: rgb(0.92, 0.92, 0.94) });
-    page.drawText(section.title, { x: MARGIN + 4, y: y - 10, size: 8.5, font: helvBoldOblique });
+    page.drawText(section.title, { x: MARGIN + 4, y: y - 13, size: 10, font: helvBoldOblique });
     y -= sectionRowH;
 
     section.items.forEach((item) => {
-      const labelLines = wrapText(item.label, helv, itemSize, LABEL_W2 - 8);
-      const rowH = Math.max(labelLines.length * itemLh + 6, 14);
+      const isSub = item.no?.startsWith("(");
+      const indent = isSub ? itemIndent : 0;
+      const labelText = item.no ? `${item.no} ${item.label}` : item.label;
+      const labelLines = wrapText(labelText, helv, itemSize, LABEL_W2 - 8 - indent);
+      const rowH = Math.max(labelLines.length * itemLh + 6, 20);
       if (y - rowH < MARGIN) {
         newPage();
         drawPart2Header();
       }
       page.drawRectangle({ x: MARGIN, y: y - rowH, width: LABEL_W2, height: rowH, borderColor: BORDER, borderWidth: 0.75 });
-      drawLines(labelLines, MARGIN + 4, y, helv, itemSize, rgb(0, 0, 0), itemLh);
-      const selected = ratings[item.key] ?? -1;
+      drawLines(labelLines, MARGIN + 4 + indent, y, helv, itemSize, rgb(0, 0, 0), itemLh);
+      const selected = item.key ? ratings[item.key] ?? -1 : -1;
       for (let c = 0; c < 5; c++) {
         const cx = MARGIN + LABEL_W2 + c * RATE_W;
         page.drawRectangle({ x: cx, y: y - rowH, width: RATE_W, height: rowH, borderColor: BORDER, borderWidth: 0.75 });
-        if (selected === c) drawCheck(cx + RATE_W / 2, y - rowH / 2, 11);
+        if (item.key && selected === c) drawCheck(cx + RATE_W / 2, y - rowH / 2, 11);
       }
       y -= rowH;
     });
@@ -549,7 +555,7 @@ export default function EMRSSprMaker({ tool }: { tool: Tool }) {
   // ---------- Bulk mode ----------
   const handleDownloadTemplate = async () => {
     const XLSX = await import("xlsx");
-    const headers = [...PART1_FIELDS.map((f) => f.label), ...PART2_SECTIONS.flatMap((s) => s.items.map((it) => it.label)), "Comments"];
+    const headers = [...PART1_FIELDS.map((f) => f.label), ...PART2_SECTIONS.flatMap((s) => s.items.filter((it) => it.key).map((it) => it.label)), "Comments"];
     const sample = [
       "Piyush Ranjan",
       "241408634",
@@ -563,7 +569,7 @@ export default function EMRSSprMaker({ tool }: { tool: Tool }) {
       "",
       "",
       "",
-      ...PART2_SECTIONS.flatMap((s) => s.items.map(() => "Fully meets")),
+      ...PART2_SECTIONS.flatMap((s) => s.items.filter((it) => it.key).map(() => "Fully meets")),
       "Sincere, hardworking and disciplined officer with good rapport with colleagues and students.",
     ];
     const ws = XLSX.utils.aoa_to_sheet([headers, sample]);
@@ -597,10 +603,10 @@ export default function EMRSSprMaker({ tool }: { tool: Tool }) {
         const ratingsRec: Record<string, number> = {};
         let col = PART1_FIELDS.length;
         PART2_SECTIONS.forEach((section) =>
-          section.items.forEach((item) => {
+          section.items.filter((item) => item.key).forEach((item) => {
             const val = cell(col).toLowerCase();
             const idx = RATING_SHORT.findIndex((l) => l.toLowerCase() === val);
-            ratingsRec[item.key] = idx;
+            ratingsRec[item.key as string] = idx;
             col++;
           })
         );
@@ -768,28 +774,34 @@ export default function EMRSSprMaker({ tool }: { tool: Tool }) {
             <div key={section.title} className="space-y-2">
               <h3 className="text-sm font-semibold text-foreground">{section.title}</h3>
               <div className="space-y-2">
-                {section.items.map((item) => (
-                  <div key={item.key} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 border-b border-border/60 pb-2">
-                    <span className="text-sm flex-1">{item.label}</span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {RATING_SHORT.map((label, idx) => (
-                        <button
-                          key={idx}
-                          title={RATING_LABELS[idx]}
-                          onClick={() => setRating(item.key, idx)}
-                          className={`px-2 py-1 rounded-lg border text-[11px] font-medium transition-all flex items-center gap-1 ${
-                            ratings[item.key] === idx
-                              ? "border-green-600 bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400"
-                              : "border-border text-muted-foreground hover:border-primary/40"
-                          }`}
-                        >
-                          {ratings[item.key] === idx && <CheckCircle2 className="w-3 h-3" />}
-                          {label}
-                        </button>
-                      ))}
+                {section.items.map((item) =>
+                  item.key ? (
+                    <div key={item.key} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 border-b border-border/60 pb-2">
+                      <span className="text-sm flex-1">{item.no ? `${item.no} ${item.label}` : item.label}</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {RATING_SHORT.map((label, idx) => (
+                          <button
+                            key={idx}
+                            title={RATING_LABELS[idx]}
+                            onClick={() => setRating(item.key as string, idx)}
+                            className={`px-2 py-1 rounded-lg border text-[11px] font-medium transition-all flex items-center gap-1 ${
+                              ratings[item.key as string] === idx
+                                ? "border-green-600 bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400"
+                                : "border-border text-muted-foreground hover:border-primary/40"
+                            }`}
+                          >
+                            {ratings[item.key as string] === idx && <CheckCircle2 className="w-3 h-3" />}
+                            {label}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ) : (
+                    <div key={`${item.no}-${item.label}`} className="text-sm font-medium text-foreground/80 pt-1">
+                      {item.no ? `${item.no} ${item.label}` : item.label}
+                    </div>
+                  )
+                )}
               </div>
             </div>
           ))}
@@ -871,28 +883,34 @@ export default function EMRSSprMaker({ tool }: { tool: Tool }) {
                       <div key={section.title} className="space-y-2">
                         <h3 className="text-sm font-semibold text-foreground">{section.title}</h3>
                         <div className="space-y-2">
-                          {section.items.map((item) => (
+                          {section.items.map((item) =>
+                            item.key ? (
                             <div key={item.key} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 border-b border-border/60 pb-2">
-                              <span className="text-sm flex-1">{item.label}</span>
+                              <span className="text-sm flex-1">{item.no ? `${item.no} ${item.label}` : item.label}</span>
                               <div className="flex flex-wrap gap-1.5">
                                 {RATING_SHORT.map((label, idx) => (
                                   <button
                                     key={idx}
                                     title={RATING_LABELS[idx]}
-                                    onClick={() => setEmployeeRating(item.key, idx)}
+                                    onClick={() => setEmployeeRating(item.key as string, idx)}
                                     className={`px-2 py-1 rounded-lg border text-[11px] font-medium transition-all flex items-center gap-1 ${
-                                      currentEmployee.ratings[item.key] === idx
+                                      currentEmployee.ratings[item.key as string] === idx
                                         ? "border-green-600 bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400"
                                         : "border-border text-muted-foreground hover:border-primary/40"
                                     }`}
                                   >
-                                    {currentEmployee.ratings[item.key] === idx && <CheckCircle2 className="w-3 h-3" />}
+                                    {currentEmployee.ratings[item.key as string] === idx && <CheckCircle2 className="w-3 h-3" />}
                                     {label}
                                   </button>
                                 ))}
                               </div>
                             </div>
-                          ))}
+                            ) : (
+                              <div key={`${item.no}-${item.label}`} className="text-sm font-medium text-foreground/80 pt-1">
+                                {item.no ? `${item.no} ${item.label}` : item.label}
+                              </div>
+                            )
+                          )}
                         </div>
                       </div>
                     ))}

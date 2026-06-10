@@ -92,13 +92,20 @@ export default function RemoveBackground({ tool }: { tool: Tool }) {
 
     if (REMOVE_BG_API_URL) {
       setProgress("Removing background...");
+      const wakeupTimer = setTimeout(() => {
+        setProgress("Waking up server (can take up to a minute on the first request)...");
+      }, 8000);
       try {
         const dataUrl = await fileToDataUrl(files[0].file);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 90000);
         const res = await fetch(REMOVE_BG_API_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ imageUrl: dataUrl }),
+          signal: controller.signal,
         });
+        clearTimeout(timeoutId);
 
         if (!res.ok) {
           const err = await res.json().catch(() => null);
@@ -108,10 +115,12 @@ export default function RemoveBackground({ tool }: { tool: Tool }) {
         const blob = await res.blob();
         setCutoutBlob(blob);
         setCutoutUrl(URL.createObjectURL(blob));
+        clearTimeout(wakeupTimer);
         setProcessing(false);
         setProgress("");
         return;
       } catch (e) {
+        clearTimeout(wakeupTimer);
         console.error("Server-side background removal failed, falling back to on-device:", e);
       }
     }

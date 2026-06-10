@@ -61,6 +61,7 @@ const FlipImage = dynamic(() => import("@/components/tools/processors/flip-image
 const WatermarkImage = dynamic(() => import("@/components/tools/processors/watermark-image"), { loading: () => <ToolLoader /> });
 const OCRImage = dynamic(() => import("@/components/tools/processors/ocr-image"), { loading: () => <ToolLoader /> });
 const TextTools = dynamic(() => import("@/components/tools/processors/text-tools"), { loading: () => <ToolLoader /> });
+const EMRSSprMaker = dynamic(() => import("@/components/tools/processors/emrs-spr-maker"), { loading: () => <ToolLoader /> });
 
 function ToolLoader() {
   return (
@@ -144,6 +145,7 @@ const toolMap: Record<string, React.ComponentType<{ tool: Tool }>> = {
   "json-formatter": TextTools,
   "base64-encoder": TextTools,
   "hash-generator": TextTools,
+  "emrs-spr-maker": EMRSSprMaker,
 };
 
 interface Props {

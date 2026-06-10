@@ -39,6 +39,7 @@ the browser, so the tool keeps working either way.
 """
 
 import base64
+import os
 import re
 from urllib.request import urlopen, Request as UrlRequest
 
@@ -47,7 +48,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from rembg import new_session, remove
 
-MODEL_NAME = "isnet-general-use"
+# u2netp is the lightweight model (~5MB, low memory footprint) so this
+# fits comfortably on free-tier hosts (e.g. Render's 512MB limit). If your
+# host has more RAM, set REMBG_MODEL=isnet-general-use for higher quality.
+MODEL_NAME = os.environ.get("REMBG_MODEL", "u2netp")
 
 session = new_session(MODEL_NAME)
 

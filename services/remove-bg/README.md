@@ -2,8 +2,14 @@
 
 A self-hosted background-removal API. Runs entirely on its own — no API
 keys, no rate limits, no third-party dependency. Powered by
-[`rembg`](https://github.com/danielgatis/rembg) (`isnet-general-use` model)
-running on CPU via ONNX Runtime.
+[`rembg`](https://github.com/danielgatis/rembg) running on CPU via ONNX
+Runtime.
+
+By default it uses the **`u2netp`** model (~5MB, low memory footprint) so
+it fits comfortably on free-tier hosts (e.g. Render's 512MB limit). On a
+host with more RAM, you can switch to a higher-quality model by setting
+the `REMBG_MODEL` env var (or `--build-arg REMBG_MODEL=...`) to
+`isnet-general-use` or `u2net`.
 
 ## API
 
@@ -21,8 +27,8 @@ running on CPU via ONNX Runtime.
    contains the `Dockerfile`).
 4. Set the **port** to `8000`.
 5. No environment variables or secrets are needed.
-6. Deploy. The first build takes a few minutes (it downloads and bakes in
-   the ~170MB model). Subsequent deploys reuse the cached layer.
+6. Deploy. The first build takes a couple of minutes (it downloads and
+   bakes in the model). Subsequent deploys reuse the cached layer.
 7. Once live, Northflank gives you a public URL, e.g.
    `https://airtools-remove-bg--xxxx.code.run`.
 8. In your AirTools Vercel project, set:

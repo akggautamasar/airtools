@@ -46,6 +46,7 @@ export const ALL_TOOLS: Tool[] = [
 
   // Image Tools
   { slug: "upscale-image", name: "Image Upscaler", description: "Enhance and upscale images using AI for sharper, higher-resolution results.", category: "image", icon: "Sparkles", color: "text-green-500", tags: ["upscale", "enhance", "ai", "resolution"], popular: true },
+  { slug: "remove-background", name: "Remove Background", description: "Remove image backgrounds with on-device AI, then add a solid color or custom background.", category: "image", icon: "Wand2", color: "text-green-500", tags: ["background", "remove", "transparent", "ai"], popular: true },
   { slug: "compress-image", name: "Compress Image", description: "Compress and optimize images without visible quality loss. Supports all major formats.", category: "image", icon: "ImageDown", color: "text-green-500", tags: ["compress", "optimize", "reduce"], popular: true },
   { slug: "compress-jpg", name: "Compress JPG", description: "Reduce JPG image file size with adjustable quality settings.", category: "image", icon: "ImageDown", color: "text-green-500", tags: ["jpg", "compress", "reduce"] },
   { slug: "compress-jpeg", name: "Compress JPEG", description: "Optimize JPEG images for web and email with smart compression.", category: "image", icon: "ImageDown", color: "text-green-500", tags: ["jpeg", "compress", "optimize"] },

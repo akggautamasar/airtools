@@ -2,12 +2,12 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { ArrowRight, Star, FileDown, FilePlus2, FileText, ImageDown, Maximize2, Crop, Key, Lock, Sparkles, ScanText } from "lucide-react";
+import { ArrowRight, Star, FileDown, FilePlus2, FileText, ImageDown, Maximize2, Crop, Key, Lock, Sparkles, ScanText, Wand2 } from "lucide-react";
 import { POPULAR_TOOLS } from "@/lib/tools-data";
 import { Badge } from "@/components/ui/badge";
 
 const iconMap: Record<string, React.ElementType> = {
-  FileDown, FilePlus2, FileText, ImageDown, Maximize2, Crop, Key, Lock, Sparkles, ScanText,
+  FileDown, FilePlus2, FileText, ImageDown, Maximize2, Crop, Key, Lock, Sparkles, ScanText, Wand2,
 };
 
 const categoryColors: Record<string, string> = {

@@ -21,6 +21,7 @@ const RemoveAnnotations = dynamic(() => import("@/components/tools/processors/re
 const RenamePDF = dynamic(() => import("@/components/tools/processors/rename-pdf"), { loading: () => <ToolLoader /> });
 const ImageToPDF = dynamic(() => import("@/components/tools/processors/image-to-pdf"), { loading: () => <ToolLoader /> });
 const UpscaleImage = dynamic(() => import("@/components/tools/processors/upscale-image"), { loading: () => <ToolLoader /> });
+const RemoveBackground = dynamic(() => import("@/components/tools/processors/remove-background"), { loading: () => <ToolLoader /> });
 const CompressImage = dynamic(() => import("@/components/tools/processors/compress-image"), { loading: () => <ToolLoader /> });
 const ResizeImage = dynamic(() => import("@/components/tools/processors/resize-image"), { loading: () => <ToolLoader /> });
 const RotateImage = dynamic(() => import("@/components/tools/processors/rotate-image"), { loading: () => <ToolLoader /> });
@@ -62,6 +63,7 @@ const toolMap: Record<string, React.ComponentType<{ tool: Tool }>> = {
   "image-to-pdf": ImageToPDF,
   "jpg-to-pdf": ImageToPDF,
   "upscale-image": UpscaleImage,
+  "remove-background": RemoveBackground,
   "compress-image": CompressImage,
   "compress-jpg": CompressImage,
   "compress-jpeg": CompressImage,

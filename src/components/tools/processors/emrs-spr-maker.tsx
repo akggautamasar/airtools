@@ -106,8 +106,11 @@ const PART3_ROWS = [
   "3. Would be discharged / terminated from Government service [here give reasons for recommending this course of action].",
 ];
 
-// All fonts are real handwriting typefaces by the Indian Type Foundry (OFL licensed).
+// All fonts are real handwriting typefaces (OFL licensed): Kalam/Tillana by the
+// Indian Type Foundry, plus two cursive faces matched to user-supplied samples.
 const HAND_FONTS = [
+  { id: "handwriting-1", name: "Handwriting 1 (Slanted cursive)", file: "LaBelleAurore-Regular.ttf", family: "SprLaBelleAurore" },
+  { id: "handwriting-2", name: "Handwriting 2 (Round cursive)", file: "CedarvilleCursive-Regular.ttf", family: "SprCedarville" },
   { id: "kalam", name: "Kalam", file: "Kalam-Regular.ttf", family: "SprKalam" },
   { id: "kalam-light", name: "Kalam Light", file: "Kalam-Light.ttf", family: "SprKalamLight" },
   { id: "kalam-bold", name: "Kalam Bold", file: "Kalam-Bold.ttf", family: "SprKalamBold" },

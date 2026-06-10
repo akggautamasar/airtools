@@ -1,12 +1,24 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Download, Loader2, Wand2, Palette, ImageIcon, EyeOff } from "lucide-react";
+import { Download, Loader2, Wand2, Palette, ImageIcon, EyeOff, Crown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { UploadZone } from "@/components/tools/upload-zone";
 import { UploadedFile, Tool } from "@/types";
 import { downloadBlob, formatFileSize, ACCEPTED_IMAGE_TYPES } from "@/lib/utils";
+
+const UPSCALE_API_URL =
+  process.env.NEXT_PUBLIC_UPSCALE_API_URL || "https://airupscaler.worksbeyondworks.workers.dev";
+
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error("Failed to read image"));
+    reader.readAsDataURL(blob);
+  });
+}
 
 type BgMode = "transparent" | "color" | "image";
 
@@ -55,6 +67,8 @@ export default function RemoveBackground({ tool }: { tool: Tool }) {
   const [error, setError] = useState("");
   const [cutoutBlob, setCutoutBlob] = useState<Blob | null>(null);
   const [cutoutUrl, setCutoutUrl] = useState("");
+  const [upscaling, setUpscaling] = useState(false);
+  const [hdError, setHdError] = useState("");
 
   const [bgMode, setBgMode] = useState<BgMode>("transparent");
   const [bgColor, setBgColor] = useState("#ffffff");
@@ -138,6 +152,31 @@ export default function RemoveBackground({ tool }: { tool: Tool }) {
     downloadBlob(composited, `${baseName}-new-bg.png`);
   };
 
+  const handleDownloadHD = async () => {
+    if (!cutoutBlob || !files.length) return;
+    setUpscaling(true);
+    setHdError("");
+    try {
+      const baseName = files[0].name.replace(/\.[^.]+$/, "");
+      const source = bgMode === "transparent" ? cutoutBlob : await compositeImage(cutoutBlob, bgMode, bgColor, bgImageUrl);
+      const dataUrl = await blobToDataUrl(source);
+      const res = await fetch(UPSCALE_API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrl: dataUrl }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        throw new Error(err?.error || `Upscaling failed (${res.status})`);
+      }
+      const blob = await res.blob();
+      downloadBlob(blob, `${baseName}-hd.png`);
+    } catch (e) {
+      setHdError(e instanceof Error ? e.message : "Failed to create HD image. Please try again.");
+    }
+    setUpscaling(false);
+  };
+
   return (
     <div className="space-y-6">
       <UploadZone accept={ACCEPTED_IMAGE_TYPES} multiple={false} onFilesChange={handleFilesChange} title="Upload an image" description="Remove the background using on-device AI — no upload to any server" />
@@ -207,9 +246,24 @@ export default function RemoveBackground({ tool }: { tool: Tool }) {
             )}
           </div>
 
-          <Button onClick={handleDownload} size="lg" className="w-full" variant="gradient">
-            <Download className="w-4 h-4 mr-2" />Download {bgMode === "transparent" ? `(${formatFileSize(cutoutBlob.size)})` : "PNG"}
-          </Button>
+          {hdError && <p className="text-sm text-red-500">{hdError}</p>}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Button onClick={handleDownload} size="lg" className="w-full" variant="gradient">
+              <Download className="w-4 h-4 mr-2" />Download {bgMode === "transparent" ? `(${formatFileSize(cutoutBlob.size)})` : "PNG"}
+            </Button>
+            <Button
+              onClick={handleDownloadHD}
+              disabled={upscaling}
+              size="lg"
+              className="w-full bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 hover:from-amber-500 hover:via-yellow-600 hover:to-amber-700 text-black font-semibold border-0 shadow-lg shadow-amber-500/30"
+            >
+              {upscaling ? (
+                <><Loader2 className="w-4 h-4 animate-spin mr-2" />Enhancing...</>
+              ) : (
+                <><Crown className="w-4 h-4 mr-2" />Download HD <span className="ml-1.5 text-[10px] font-bold bg-black/15 px-1.5 py-0.5 rounded">PRO</span></>
+              )}
+            </Button>
+          </div>
         </motion.div>
       )}
     </div>

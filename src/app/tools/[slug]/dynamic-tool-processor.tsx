@@ -16,6 +16,7 @@ const UnlockPDF = dynamic(() => import("@/components/tools/processors/unlock-pdf
 const AddWatermark = dynamic(() => import("@/components/tools/processors/add-watermark"), { loading: () => <ToolLoader /> });
 const AddPageNumbers = dynamic(() => import("@/components/tools/processors/add-page-numbers"), { loading: () => <ToolLoader /> });
 const ImageToPDF = dynamic(() => import("@/components/tools/processors/image-to-pdf"), { loading: () => <ToolLoader /> });
+const UpscaleImage = dynamic(() => import("@/components/tools/processors/upscale-image"), { loading: () => <ToolLoader /> });
 const CompressImage = dynamic(() => import("@/components/tools/processors/compress-image"), { loading: () => <ToolLoader /> });
 const ResizeImage = dynamic(() => import("@/components/tools/processors/resize-image"), { loading: () => <ToolLoader /> });
 const RotateImage = dynamic(() => import("@/components/tools/processors/rotate-image"), { loading: () => <ToolLoader /> });
@@ -48,6 +49,7 @@ const toolMap: Record<string, React.ComponentType<{ tool: Tool }>> = {
   "add-page-numbers": AddPageNumbers,
   "image-to-pdf": ImageToPDF,
   "jpg-to-pdf": ImageToPDF,
+  "upscale-image": UpscaleImage,
   "compress-image": CompressImage,
   "compress-jpg": CompressImage,
   "compress-jpeg": CompressImage,

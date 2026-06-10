@@ -15,6 +15,10 @@ const ProtectPDF = dynamic(() => import("@/components/tools/processors/protect-p
 const UnlockPDF = dynamic(() => import("@/components/tools/processors/unlock-pdf"), { loading: () => <ToolLoader /> });
 const AddWatermark = dynamic(() => import("@/components/tools/processors/add-watermark"), { loading: () => <ToolLoader /> });
 const AddPageNumbers = dynamic(() => import("@/components/tools/processors/add-page-numbers"), { loading: () => <ToolLoader /> });
+const ResizePDF = dynamic(() => import("@/components/tools/processors/resize-pdf"), { loading: () => <ToolLoader /> });
+const RepairPDF = dynamic(() => import("@/components/tools/processors/repair-pdf"), { loading: () => <ToolLoader /> });
+const RemoveAnnotations = dynamic(() => import("@/components/tools/processors/remove-annotations"), { loading: () => <ToolLoader /> });
+const RenamePDF = dynamic(() => import("@/components/tools/processors/rename-pdf"), { loading: () => <ToolLoader /> });
 const ImageToPDF = dynamic(() => import("@/components/tools/processors/image-to-pdf"), { loading: () => <ToolLoader /> });
 const UpscaleImage = dynamic(() => import("@/components/tools/processors/upscale-image"), { loading: () => <ToolLoader /> });
 const CompressImage = dynamic(() => import("@/components/tools/processors/compress-image"), { loading: () => <ToolLoader /> });
@@ -47,6 +51,10 @@ const toolMap: Record<string, React.ComponentType<{ tool: Tool }>> = {
   "unlock-pdf": UnlockPDF,
   "add-watermark": AddWatermark,
   "add-page-numbers": AddPageNumbers,
+  "resize-pdf": ResizePDF,
+  "repair-pdf": RepairPDF,
+  "remove-annotations": RemoveAnnotations,
+  "rename-pdf": RenamePDF,
   "image-to-pdf": ImageToPDF,
   "jpg-to-pdf": ImageToPDF,
   "upscale-image": UpscaleImage,

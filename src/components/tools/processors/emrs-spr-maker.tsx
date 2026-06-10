@@ -209,7 +209,6 @@ async function generateSprPdf(opts: {
   const helv = await doc.embedFont(StandardFonts.Helvetica);
   const helvBold = await doc.embedFont(StandardFonts.HelveticaBold);
   const helvOblique = await doc.embedFont(StandardFonts.HelveticaOblique);
-  const helvBoldOblique = await doc.embedFont(StandardFonts.HelveticaBoldOblique);
 
   const fontRes = await fetch(`/fonts/${font.file}`);
   if (!fontRes.ok) throw new Error("Could not load the handwriting font");
@@ -326,57 +325,71 @@ async function generateSprPdf(opts: {
 
   const LABEL_W2 = 248;
   const RATE_W = (CONTENT_W - LABEL_W2) / 5;
-  const headerSize = 7;
-  const headerLh = 9;
+  const headerSize = 7.5;
+  const headerLh = 9.5;
 
-  const drawPart2Header = () => {
-    const headerLines = RATING_LABELS.map((l) => wrapText(l, helvBold, headerSize, RATE_W - 4));
-    const headerRowH = Math.max(...headerLines.map((l) => l.length)) * headerLh + 14;
-    ensure(headerRowH);
-    page.drawRectangle({ x: MARGIN, y: y - headerRowH, width: LABEL_W2, height: headerRowH, borderColor: BORDER, borderWidth: 0.75 });
-    page.drawText("(1)", { x: MARGIN + 4, y: y - 12, size: 8, font: helvBold });
+  // First page: "Performance Factor" + rating labels, then a (1)-(6) row.
+  // Continuation pages repeat only the slim (1)-(6) row, like the original form.
+  const drawPart2Header = (full: boolean) => {
+    if (full) {
+      const headerLines = RATING_LABELS.map((l) => wrapText(l, helv, headerSize, RATE_W - 6));
+      const headerRowH = Math.max(...headerLines.map((l) => l.length)) * headerLh + 8;
+      ensure(headerRowH + 14);
+      page.drawRectangle({ x: MARGIN, y: y - headerRowH, width: LABEL_W2, height: headerRowH, borderColor: BORDER, borderWidth: 0.75 });
+      page.drawText("Performance Factor", { x: MARGIN + 4, y: y - 12, size: 8.5, font: helv });
+      for (let c = 0; c < 5; c++) {
+        const cx = MARGIN + LABEL_W2 + c * RATE_W;
+        page.drawRectangle({ x: cx, y: y - headerRowH, width: RATE_W, height: headerRowH, borderColor: BORDER, borderWidth: 0.75 });
+        headerLines[c].forEach((line, li) => {
+          const lw = helv.widthOfTextAtSize(line, headerSize);
+          page.drawText(line, { x: cx + (RATE_W - lw) / 2, y: y - 11 - li * headerLh, size: headerSize, font: helv });
+        });
+      }
+      y -= headerRowH;
+    }
+    const numRowH = 14;
+    ensure(numRowH);
+    page.drawRectangle({ x: MARGIN, y: y - numRowH, width: LABEL_W2, height: numRowH, borderColor: BORDER, borderWidth: 0.75 });
+    page.drawText("(1)", { x: MARGIN + (LABEL_W2 - helv.widthOfTextAtSize("(1)", 8.5)) / 2, y: y - 11, size: 8.5, font: helv });
     for (let c = 0; c < 5; c++) {
       const cx = MARGIN + LABEL_W2 + c * RATE_W;
-      page.drawRectangle({ x: cx, y: y - headerRowH, width: RATE_W, height: headerRowH, borderColor: BORDER, borderWidth: 0.75 });
-      page.drawText(`(${c + 2})`, { x: cx + RATE_W / 2 - helvBold.widthOfTextAtSize(`(${c + 2})`, 7) / 2, y: y - 10, size: 7, font: helvBold });
-      drawLines(headerLines[c], cx + 2, y - 11, helv, headerSize, rgb(0, 0, 0), headerLh);
+      page.drawRectangle({ x: cx, y: y - numRowH, width: RATE_W, height: numRowH, borderColor: BORDER, borderWidth: 0.75 });
+      const t = `(${c + 2})`;
+      page.drawText(t, { x: cx + (RATE_W - helv.widthOfTextAtSize(t, 8.5)) / 2, y: y - 11, size: 8.5, font: helv });
     }
-    y -= headerRowH;
+    y -= numRowH;
   };
 
-  drawPart2Header();
+  drawPart2Header(true);
 
   const itemSize = 10;
   const itemLh = 14;
-  const itemIndent = 14;
+  const NO_INDENT = 22; // hanging indent: label text aligns after the item number
+
+  // Draws one PART-II grid row: numbered label (hanging indent) + 5 rating cells.
+  const drawPart2Row = (no: string | undefined, label: string, labelFont: PDFFont, key?: string) => {
+    const labelLines = wrapText(label, labelFont, itemSize, LABEL_W2 - 8 - (no ? NO_INDENT : 0));
+    const rowH = Math.max(labelLines.length * itemLh + 6, 20);
+    if (y - rowH < MARGIN) {
+      newPage();
+      drawPart2Header(false);
+    }
+    page.drawRectangle({ x: MARGIN, y: y - rowH, width: LABEL_W2, height: rowH, borderColor: BORDER, borderWidth: 0.75 });
+    if (no) page.drawText(no, { x: MARGIN + 4, y: y - itemLh + (itemLh - itemSize) * 0.3, size: itemSize, font: labelFont });
+    drawLines(labelLines, MARGIN + 4 + (no ? NO_INDENT : 0), y, labelFont, itemSize, rgb(0, 0, 0), itemLh);
+    const selected = key ? ratings[key] ?? -1 : -1;
+    for (let c = 0; c < 5; c++) {
+      const cx = MARGIN + LABEL_W2 + c * RATE_W;
+      page.drawRectangle({ x: cx, y: y - rowH, width: RATE_W, height: rowH, borderColor: BORDER, borderWidth: 0.75 });
+      if (key && selected === c) drawCheck(cx + RATE_W / 2, y - rowH / 2, 11);
+    }
+    y -= rowH;
+  };
 
   PART2_SECTIONS.forEach((section) => {
-    const sectionRowH = 18;
-    ensure(sectionRowH);
-    page.drawRectangle({ x: MARGIN, y: y - sectionRowH, width: CONTENT_W, height: sectionRowH, borderColor: BORDER, borderWidth: 0.75, color: rgb(0.92, 0.92, 0.94) });
-    page.drawText(section.title, { x: MARGIN + 4, y: y - 13, size: 10, font: helvBoldOblique });
-    y -= sectionRowH;
-
-    section.items.forEach((item) => {
-      const isSub = item.no?.startsWith("(");
-      const indent = isSub ? itemIndent : 0;
-      const labelText = item.no ? `${item.no} ${item.label}` : item.label;
-      const labelLines = wrapText(labelText, helv, itemSize, LABEL_W2 - 8 - indent);
-      const rowH = Math.max(labelLines.length * itemLh + 6, 20);
-      if (y - rowH < MARGIN) {
-        newPage();
-        drawPart2Header();
-      }
-      page.drawRectangle({ x: MARGIN, y: y - rowH, width: LABEL_W2, height: rowH, borderColor: BORDER, borderWidth: 0.75 });
-      drawLines(labelLines, MARGIN + 4 + indent, y, helv, itemSize, rgb(0, 0, 0), itemLh);
-      const selected = item.key ? ratings[item.key] ?? -1 : -1;
-      for (let c = 0; c < 5; c++) {
-        const cx = MARGIN + LABEL_W2 + c * RATE_W;
-        page.drawRectangle({ x: cx, y: y - rowH, width: RATE_W, height: rowH, borderColor: BORDER, borderWidth: 0.75 });
-        if (item.key && selected === c) drawCheck(cx + RATE_W / 2, y - rowH / 2, 11);
-      }
-      y -= rowH;
-    });
+    const spaceIdx = section.title.indexOf(" ");
+    drawPart2Row(section.title.slice(0, spaceIdx), section.title.slice(spaceIdx + 1), helvBold);
+    section.items.forEach((item) => drawPart2Row(item.no, item.label, helv, item.key));
   });
 
   // ---------- Comments & signature ----------
@@ -455,25 +468,38 @@ async function generateSprPdf(opts: {
   centerText("(To be filled up by the Committee, when case is referred to it)", helvOblique, 8.5);
   y -= 2;
 
+  const NO3_W = 28;
   const REMARKS_W = 150;
-  const DESC_W = CONTENT_W - REMARKS_W;
+  const DESC_W = CONTENT_W - NO3_W - REMARKS_W;
   PART3_ROWS.forEach((text, i) => {
-    const lines = wrapText(text, helv, 8.5, DESC_W - 8);
-    const rowH = Math.max(lines.length * 11 + 6, 24);
+    // Rows are stored as "1. <description>"; the number goes in its own column.
+    const m = text.match(/^(\d+\.)\s+([\s\S]*)$/);
+    const no = m ? m[1] : "";
+    const desc = m ? m[2] : text;
+    const lines = wrapText(desc, helv, 9.5, DESC_W - 8);
+    const rowH = Math.max(lines.length * 12 + 6, 24);
     ensure(rowH);
-    page.drawRectangle({ x: MARGIN, y: y - rowH, width: DESC_W, height: rowH, borderColor: BORDER, borderWidth: 0.75 });
-    page.drawRectangle({ x: MARGIN + DESC_W, y: y - rowH, width: REMARKS_W, height: rowH, borderColor: BORDER, borderWidth: 0.75 });
-    drawLines(lines, MARGIN + 4, y, helv, 8.5, rgb(0, 0, 0), 11);
+    page.drawRectangle({ x: MARGIN, y: y - rowH, width: NO3_W, height: rowH, borderColor: BORDER, borderWidth: 0.75 });
+    page.drawRectangle({ x: MARGIN + NO3_W, y: y - rowH, width: DESC_W, height: rowH, borderColor: BORDER, borderWidth: 0.75 });
+    page.drawRectangle({ x: MARGIN + NO3_W + DESC_W, y: y - rowH, width: REMARKS_W, height: rowH, borderColor: BORDER, borderWidth: 0.75 });
+    if (no) page.drawText(no, { x: MARGIN + 6, y: y - 12 + (12 - 9.5) * 0.3, size: 9.5, font: helv });
+    drawLines(lines, MARGIN + NO3_W + 4, y, helv, 9.5, rgb(0, 0, 0), 12);
     y -= rowH;
 
     if (i < PART3_ROWS.length - 1) {
-      const orH = 18;
+      const orH = 16;
       ensure(orH);
-      page.drawRectangle({ x: MARGIN, y: y - orH, width: CONTENT_W, height: orH, borderColor: BORDER, borderWidth: 0.75 });
-      page.drawText("OR", { x: (PAGE_W - helvBold.widthOfTextAtSize("OR", 9)) / 2, y: y - 13, size: 9, font: helvBold });
+      // "OR" centered within the number+description columns; remarks cell continues alongside.
+      page.drawRectangle({ x: MARGIN, y: y - orH, width: NO3_W + DESC_W, height: orH, borderColor: BORDER, borderWidth: 0.75 });
+      page.drawRectangle({ x: MARGIN + NO3_W + DESC_W, y: y - orH, width: REMARKS_W, height: orH, borderColor: BORDER, borderWidth: 0.75 });
+      page.drawText("OR", { x: MARGIN + (NO3_W + DESC_W - helv.widthOfTextAtSize("OR", 9.5)) / 2, y: y - 12, size: 9.5, font: helv });
       y -= orH;
     }
   });
+
+  y -= 20;
+  ensure(16);
+  centerText("*******", helvBold, 11);
 
   const bytes = await doc.save();
   return new Blob([bytes.buffer as ArrayBuffer], { type: "application/pdf" });

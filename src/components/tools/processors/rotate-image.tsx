@@ -5,7 +5,7 @@ import { Download, Loader2, RotateCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UploadZone } from "@/components/tools/upload-zone";
 import { UploadedFile, Tool } from "@/types";
-import { downloadBlob, formatFileSize, ACCEPTED_IMAGE_TYPES } from "@/lib/utils";
+import { downloadBlob, formatFileSize, ACCEPTED_IMAGE_TYPES, mapWithConcurrency } from "@/lib/utils";
 
 export default function RotateImage({ tool }: { tool: Tool }) {
   const [files, setFiles] = useState<UploadedFile[]>([]);
@@ -17,31 +17,25 @@ export default function RotateImage({ tool }: { tool: Tool }) {
     if (!files.length) return;
     setProcessing(true);
     setResults([]);
-    const newResults = [];
-    for (const f of files) {
-      try {
-        const img = new window.Image();
-        const url = URL.createObjectURL(f.file);
-        await new Promise((res) => { img.onload = res; img.src = url; });
-        URL.revokeObjectURL(url);
-        const rad = (angle * Math.PI) / 180;
-        const cos = Math.abs(Math.cos(rad));
-        const sin = Math.abs(Math.sin(rad));
-        const newW = Math.round(img.width * cos + img.height * sin);
-        const newH = Math.round(img.width * sin + img.height * cos);
-        const canvas = document.createElement("canvas");
-        canvas.width = newW;
-        canvas.height = newH;
-        const ctx = canvas.getContext("2d")!;
-        ctx.translate(newW / 2, newH / 2);
-        ctx.rotate(rad);
-        ctx.drawImage(img, -img.width / 2, -img.height / 2);
-        const blob = await new Promise<Blob>((res, rej) => canvas.toBlob((b) => b ? res(b) : rej(), "image/jpeg", 0.92));
-        const preview = URL.createObjectURL(blob);
-        newResults.push({ name: f.name, blob, preview });
-      } catch (e) { console.error(e); }
-    }
-    setResults(newResults);
+    const processed = await mapWithConcurrency(files, 4, async (f) => {
+      const bitmap = await createImageBitmap(f.file);
+      const rad = (angle * Math.PI) / 180;
+      const cos = Math.abs(Math.cos(rad));
+      const sin = Math.abs(Math.sin(rad));
+      const newW = Math.round(bitmap.width * cos + bitmap.height * sin);
+      const newH = Math.round(bitmap.width * sin + bitmap.height * cos);
+      const canvas = document.createElement("canvas");
+      canvas.width = newW;
+      canvas.height = newH;
+      const ctx = canvas.getContext("2d")!;
+      ctx.translate(newW / 2, newH / 2);
+      ctx.rotate(rad);
+      ctx.drawImage(bitmap, -bitmap.width / 2, -bitmap.height / 2);
+      bitmap.close();
+      const blob = await new Promise<Blob>((res, rej) => canvas.toBlob((b) => b ? res(b) : rej(), "image/jpeg", 0.92));
+      return { name: f.name, blob, preview: URL.createObjectURL(blob) };
+    });
+    setResults(processed.filter((r): r is NonNullable<typeof r> => r !== null));
     setProcessing(false);
   };
 

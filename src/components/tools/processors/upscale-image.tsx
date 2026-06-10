@@ -80,7 +80,6 @@ export default function UpscaleImage({ tool }: { tool: Tool }) {
       <UploadZone
         accept={ACCEPTED_IMAGE_TYPES}
         multiple
-        maxFiles={5}
         onFilesChange={handleFilesChange}
         title="Upload images to upscale"
         description="JPG, PNG, WEBP supported · AI-powered enhancement"

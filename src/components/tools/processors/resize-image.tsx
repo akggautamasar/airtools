@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { UploadZone } from "@/components/tools/upload-zone";
 import { UploadedFile, Tool } from "@/types";
-import { downloadBlob, formatFileSize, ACCEPTED_IMAGE_TYPES } from "@/lib/utils";
+import { downloadBlob, formatFileSize, ACCEPTED_IMAGE_TYPES, mapWithConcurrency } from "@/lib/utils";
 
 type ResizeMode = "pixels" | "percent" | "filesize";
 
@@ -133,42 +133,35 @@ export default function ResizeImage({ tool }: { tool: Tool }) {
     if (!files.length) return;
     setProcessing(true);
     setResults([]);
-    const newResults = [];
+    const processed = await mapWithConcurrency(files, 4, async (f) => {
+      const url = URL.createObjectURL(f.file);
+      const img = await loadImage(url);
+      URL.revokeObjectURL(url);
+      const mime = getMimeType(f.file);
 
-    for (const f of files) {
-      try {
-        const url = URL.createObjectURL(f.file);
-        const img = await loadImage(url);
-        URL.revokeObjectURL(url);
-        const mime = getMimeType(f.file);
-
-        if (mode === "filesize") {
-          const blob = await resizeToTargetSize(img, targetKB * 1024, mime);
-          newResults.push({
-            name: getOutputName(f.name, f.file),
-            blob,
-            originalSize: f.size,
-          });
-        } else {
-          const targetW =
-            mode === "pixels" ? width : Math.round(img.naturalWidth * percent / 100);
-          const targetH =
-            mode === "pixels" ? height : Math.round(img.naturalHeight * percent / 100);
-          const blob = await canvasToBlob(img, targetW, targetH, 0.92, mime);
-          newResults.push({
-            name: getOutputName(f.name, f.file),
-            blob,
-            originalSize: f.size,
-            newW: targetW,
-            newH: targetH,
-          });
-        }
-      } catch (e) {
-        console.error("Resize error:", e);
+      if (mode === "filesize") {
+        const blob = await resizeToTargetSize(img, targetKB * 1024, mime);
+        return {
+          name: getOutputName(f.name, f.file),
+          blob,
+          originalSize: f.size,
+        };
       }
-    }
+      const targetW =
+        mode === "pixels" ? width : Math.round(img.naturalWidth * percent / 100);
+      const targetH =
+        mode === "pixels" ? height : Math.round(img.naturalHeight * percent / 100);
+      const blob = await canvasToBlob(img, targetW, targetH, 0.92, mime);
+      return {
+        name: getOutputName(f.name, f.file),
+        blob,
+        originalSize: f.size,
+        newW: targetW,
+        newH: targetH,
+      };
+    });
 
-    setResults(newResults);
+    setResults(processed.filter((r): r is NonNullable<typeof r> => r !== null));
     setProcessing(false);
   };
 

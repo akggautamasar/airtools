@@ -35,6 +35,32 @@ const GenericPDFTool = dynamic(() => import("@/components/tools/processors/gener
 const EditPDF = dynamic(() => import("@/components/tools/processors/edit-pdf"), { ssr: false, loading: () => <ToolLoader /> });
 const OCRPDF = dynamic(() => import("@/components/tools/processors/ocr-pdf"), { loading: () => <ToolLoader /> });
 const GenericImageTool = dynamic(() => import("@/components/tools/processors/generic-image-tool"), { loading: () => <ToolLoader /> });
+const PDFToImage = dynamic(() => import("@/components/tools/processors/pdf-to-image"), { loading: () => <ToolLoader /> });
+const SelectPagesPDF = dynamic(() => import("@/components/tools/processors/select-pages-pdf"), { loading: () => <ToolLoader /> });
+const CropPDF = dynamic(() => import("@/components/tools/processors/crop-pdf"), { loading: () => <ToolLoader /> });
+const OrganizePDF = dynamic(() => import("@/components/tools/processors/organize-pdf"), { loading: () => <ToolLoader /> });
+const ExtractImagesPDF = dynamic(() => import("@/components/tools/processors/extract-images-pdf"), { loading: () => <ToolLoader /> });
+const PDFToTxt = dynamic(() => import("@/components/tools/processors/pdf-to-txt"), { loading: () => <ToolLoader /> });
+const TxtToPDF = dynamic(() => import("@/components/tools/processors/txt-to-pdf"), { loading: () => <ToolLoader /> });
+const PDFToWord = dynamic(() => import("@/components/tools/processors/pdf-to-word"), { loading: () => <ToolLoader /> });
+const WordToPDF = dynamic(() => import("@/components/tools/processors/word-to-pdf"), { loading: () => <ToolLoader /> });
+const ExcelToPDF = dynamic(() => import("@/components/tools/processors/excel-to-pdf"), { loading: () => <ToolLoader /> });
+const PDFToExcel = dynamic(() => import("@/components/tools/processors/pdf-to-excel"), { loading: () => <ToolLoader /> });
+const PDFToPPT = dynamic(() => import("@/components/tools/processors/pdf-to-ppt"), { loading: () => <ToolLoader /> });
+const PPTToPDF = dynamic(() => import("@/components/tools/processors/ppt-to-pdf"), { loading: () => <ToolLoader /> });
+const EpubToPDF = dynamic(() => import("@/components/tools/processors/epub-to-pdf"), { loading: () => <ToolLoader /> });
+const PDFToEpub = dynamic(() => import("@/components/tools/processors/pdf-to-epub"), { loading: () => <ToolLoader /> });
+const MobiToPDF = dynamic(() => import("@/components/tools/processors/mobi-to-pdf"), { loading: () => <ToolLoader /> });
+const CropImage = dynamic(() => import("@/components/tools/processors/crop-image"), { loading: () => <ToolLoader /> });
+const CropCircleImage = dynamic(() => import("@/components/tools/processors/crop-circle-image"), { loading: () => <ToolLoader /> });
+const ImageMerge = dynamic(() => import("@/components/tools/processors/image-merge"), { loading: () => <ToolLoader /> });
+const PhotoSignatureResize = dynamic(() => import("@/components/tools/processors/photo-signature-resize"), { loading: () => <ToolLoader /> });
+const GifMaker = dynamic(() => import("@/components/tools/processors/gif-maker"), { loading: () => <ToolLoader /> });
+const GifToImages = dynamic(() => import("@/components/tools/processors/gif-to-images"), { loading: () => <ToolLoader /> });
+const FlipImage = dynamic(() => import("@/components/tools/processors/flip-image"), { loading: () => <ToolLoader /> });
+const WatermarkImage = dynamic(() => import("@/components/tools/processors/watermark-image"), { loading: () => <ToolLoader /> });
+const OCRImage = dynamic(() => import("@/components/tools/processors/ocr-image"), { loading: () => <ToolLoader /> });
+const TextTools = dynamic(() => import("@/components/tools/processors/text-tools"), { loading: () => <ToolLoader /> });
 
 function ToolLoader() {
   return (
@@ -60,6 +86,28 @@ const toolMap: Record<string, React.ComponentType<{ tool: Tool }>> = {
   "rename-pdf": RenamePDF,
   "edit-pdf": EditPDF,
   "ocr-pdf": OCRPDF,
+  "pdf-to-image": PDFToImage,
+  "pdf-to-jpg": PDFToImage,
+  "remove-pages": SelectPagesPDF,
+  "extract-pdf": SelectPagesPDF,
+  "crop-pdf": CropPDF,
+  "organize-pdf": OrganizePDF,
+  "extract-images": ExtractImagesPDF,
+  "pdf-to-txt": PDFToTxt,
+  "txt-to-pdf": TxtToPDF,
+  "pdf-to-word": PDFToWord,
+  "word-to-pdf": WordToPDF,
+  "excel-to-pdf": ExcelToPDF,
+  "pdf-to-excel": PDFToExcel,
+  "pdf-to-ppt": PDFToPPT,
+  "ppt-to-pdf": PPTToPDF,
+  "ebook-to-pdf": EpubToPDF,
+  "epub-to-pdf": EpubToPDF,
+  "pdf-to-epub": PDFToEpub,
+  "pdf-to-mobi": PDFToEpub,
+  "pdf-to-azw3": PDFToEpub,
+  "mobi-to-pdf": MobiToPDF,
+  "azw-to-pdf": MobiToPDF,
   "image-to-pdf": ImageToPDF,
   "jpg-to-pdf": ImageToPDF,
   "upscale-image": UpscaleImage,
@@ -72,6 +120,15 @@ const toolMap: Record<string, React.ComponentType<{ tool: Tool }>> = {
   "compress-webp": CompressImage,
   "resize-image": ResizeImage,
   "rotate-image": RotateImage,
+  "crop-image": CropImage,
+  "crop-circle-image": CropCircleImage,
+  "image-merge": ImageMerge,
+  "photo-signature-resize": PhotoSignatureResize,
+  "gif-maker": GifMaker,
+  "gif-to-images": GifToImages,
+  "flip-image": FlipImage,
+  "watermark-image": WatermarkImage,
+  "ocr-image": OCRImage,
   "image-to-jpg": ConvertImage,
   "image-to-png": ConvertImage,
   "image-to-jpeg": ConvertImage,
@@ -83,6 +140,10 @@ const toolMap: Record<string, React.ComponentType<{ tool: Tool }>> = {
   "barcode-generator": BarcodeGenerator,
   "image-to-color": ColorExtractor,
   "color-extractor": ColorExtractor,
+  "word-counter": TextTools,
+  "json-formatter": TextTools,
+  "base64-encoder": TextTools,
+  "hash-generator": TextTools,
 };
 
 interface Props {

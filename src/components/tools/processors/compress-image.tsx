@@ -7,27 +7,22 @@ import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { UploadZone } from "@/components/tools/upload-zone";
 import { UploadedFile, Tool } from "@/types";
-import { downloadBlob, formatFileSize, ACCEPTED_IMAGE_TYPES } from "@/lib/utils";
+import { downloadBlob, formatFileSize, ACCEPTED_IMAGE_TYPES, mapWithConcurrency } from "@/lib/utils";
 
 async function compressImageFile(file: File, quality: number): Promise<Blob> {
+  // createImageBitmap decodes off the main thread — much faster than <img>.
+  const bitmap = await createImageBitmap(file);
+  const canvas = document.createElement("canvas");
+  canvas.width = bitmap.width;
+  canvas.height = bitmap.height;
+  canvas.getContext("2d")!.drawImage(bitmap, 0, 0);
+  bitmap.close();
+  const mimeType = file.type === "image/png" ? "image/png" : "image/jpeg";
   return new Promise((resolve, reject) => {
-    const img = new window.Image();
-    const url = URL.createObjectURL(file);
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      const ctx = canvas.getContext("2d")!;
-      ctx.drawImage(img, 0, 0);
-      URL.revokeObjectURL(url);
-      const mimeType = file.type === "image/png" ? "image/png" : "image/jpeg";
-      canvas.toBlob((blob) => {
-        if (blob) resolve(blob);
-        else reject(new Error("Compression failed"));
-      }, mimeType, quality / 100);
-    };
-    img.onerror = () => reject(new Error("Image load failed"));
-    img.src = url;
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error("Compression failed"));
+    }, mimeType, quality / 100);
   });
 }
 
@@ -41,15 +36,11 @@ export default function CompressImage({ tool }: { tool: Tool }) {
     if (!files.length) return;
     setProcessing(true);
     setResults([]);
-    const newResults = [];
-    for (const f of files) {
-      try {
-        const blob = await compressImageFile(f.file, quality);
-        const preview = URL.createObjectURL(blob);
-        newResults.push({ name: f.name, blob, originalSize: f.size, preview });
-      } catch (e) { console.error(e); }
-    }
-    setResults(newResults);
+    const processed = await mapWithConcurrency(files, 4, async (f) => {
+      const blob = await compressImageFile(f.file, quality);
+      return { name: f.name, blob, originalSize: f.size, preview: URL.createObjectURL(blob) };
+    });
+    setResults(processed.filter((r): r is NonNullable<typeof r> => r !== null));
     setProcessing(false);
   };
 

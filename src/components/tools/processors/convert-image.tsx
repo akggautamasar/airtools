@@ -5,7 +5,7 @@ import { Download, Loader2, ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UploadZone } from "@/components/tools/upload-zone";
 import { UploadedFile, Tool } from "@/types";
-import { downloadBlob, formatFileSize, ACCEPTED_IMAGE_TYPES } from "@/lib/utils";
+import { downloadBlob, formatFileSize, ACCEPTED_IMAGE_TYPES, mapWithConcurrency } from "@/lib/utils";
 
 const FORMAT_MAP: Record<string, string> = {
   "image-to-jpg": "image/jpeg",
@@ -50,23 +50,18 @@ export default function ConvertImage({ tool }: { tool: Tool }) {
     setProcessing(true);
     setResults([]);
     setBmpNotice(false);
-    const newResults = [];
-    for (const f of files) {
-      try {
-        const img = new window.Image();
-        const url = URL.createObjectURL(f.file);
-        await new Promise((res) => { img.onload = res; img.src = url; });
-        URL.revokeObjectURL(url);
-        const canvas = document.createElement("canvas");
-        canvas.width = img.naturalWidth;
-        canvas.height = img.naturalHeight;
-        const ctx = canvas.getContext("2d")!;
-        ctx.drawImage(img, 0, 0);
-        const blob = await canvasToBlob(canvas, targetFormat, 0.92);
-        const baseName = f.name.replace(/\.[^.]+$/, "");
-        newResults.push({ name: `${baseName}.${targetExt}`, blob });
-      } catch (e) { console.error(e); }
-    }
+    const processed = await mapWithConcurrency(files, 4, async (f) => {
+      const bitmap = await createImageBitmap(f.file);
+      const canvas = document.createElement("canvas");
+      canvas.width = bitmap.width;
+      canvas.height = bitmap.height;
+      canvas.getContext("2d")!.drawImage(bitmap, 0, 0);
+      bitmap.close();
+      const blob = await canvasToBlob(canvas, targetFormat, 0.92);
+      const baseName = f.name.replace(/\.[^.]+$/, "");
+      return { name: `${baseName}.${targetExt}`, blob };
+    });
+    const newResults = processed.filter((r): r is NonNullable<typeof r> => r !== null);
     if (isBmpTool && newResults.length > 0) setBmpNotice(true);
     setResults(newResults);
     setProcessing(false);

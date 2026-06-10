@@ -62,6 +62,9 @@ export const ALL_TOOLS: Tool[] = [
   { slug: "resize-image", name: "Resize Image", description: "Resize images by pixels or percentage with aspect ratio lock.", category: "image", icon: "Maximize2", color: "text-green-500", tags: ["resize", "scale", "dimensions"], popular: true },
   { slug: "rotate-image", name: "Rotate Image", description: "Rotate images 90, 180, 270 degrees or any custom angle.", category: "image", icon: "RotateCw", color: "text-green-500", tags: ["rotate", "flip", "orientation"] },
   { slug: "crop-circle-image", name: "Crop Circle Image", description: "Crop images into perfect circles for profile pictures and avatars.", category: "image", icon: "Circle", color: "text-green-500", tags: ["circle", "crop", "avatar"] },
+  { slug: "flip-image", name: "Flip Image", description: "Mirror images horizontally or vertically, in bulk.", category: "image", icon: "FlipHorizontal2", color: "text-green-500", tags: ["flip", "mirror", "horizontal", "vertical"], new: true },
+  { slug: "watermark-image", name: "Watermark Image", description: "Add text watermarks to photos with custom position, color and opacity.", category: "image", icon: "Stamp", color: "text-green-500", tags: ["watermark", "protect", "branding"], new: true },
+  { slug: "ocr-image", name: "Image to Text (OCR)", description: "Extract text from photos, screenshots and scans in 12 languages.", category: "image", icon: "ScanText", color: "text-green-500", tags: ["ocr", "text", "extract", "recognition"], new: true },
   { slug: "image-merge", name: "Image Merge", description: "Combine multiple images horizontally or vertically into one image.", category: "image", icon: "Layers", color: "text-green-500", tags: ["merge", "combine", "collage"] },
   { slug: "photo-signature-resize", name: "Photo Signature Resize", description: "Resize photos and signatures to specific dimensions for official documents.", category: "image", icon: "PenLine", color: "text-green-500", tags: ["signature", "resize", "documents"] },
   { slug: "gif-maker", name: "GIF Maker", description: "Create animated GIFs from multiple images with custom speed and loop settings.", category: "image", icon: "Film", color: "text-green-500", tags: ["gif", "animate", "create"] },
@@ -74,6 +77,10 @@ export const ALL_TOOLS: Tool[] = [
   { slug: "password-generator", name: "Password Generator", description: "Generate strong, secure passwords with custom length and character options.", category: "utility", icon: "Key", color: "text-blue-500", tags: ["password", "security", "generate"], popular: true },
   { slug: "image-to-color", name: "Image to Color", description: "Extract dominant colors from any image and get HEX, RGB, and HSL values.", category: "utility", icon: "Pipette", color: "text-blue-500", tags: ["color", "extract", "palette"] },
   { slug: "color-extractor", name: "Color Extractor", description: "Extract a full color palette from images with HEX, RGB, and HSL codes.", category: "utility", icon: "Palette", color: "text-blue-500", tags: ["color", "palette", "extract"] },
+  { slug: "word-counter", name: "Word Counter", description: "Count words, characters, sentences and estimated reading time in real time.", category: "utility", icon: "Type", color: "text-blue-500", tags: ["words", "count", "characters", "writing"], new: true },
+  { slug: "json-formatter", name: "JSON Formatter", description: "Format, validate and minify JSON with instant error reporting.", category: "utility", icon: "Braces", color: "text-blue-500", tags: ["json", "format", "validate", "minify"], new: true },
+  { slug: "base64-encoder", name: "Base64 Encoder", description: "Encode text to Base64 or decode Base64 back to text instantly.", category: "utility", icon: "ArrowDownUp", color: "text-blue-500", tags: ["base64", "encode", "decode"], new: true },
+  { slug: "hash-generator", name: "Hash Generator", description: "Generate SHA-1, SHA-256, SHA-384 and SHA-512 hashes from any text.", category: "utility", icon: "Hash", color: "text-blue-500", tags: ["hash", "sha256", "checksum", "security"], new: true },
 ];
 
 export const TOOL_CATEGORIES = [

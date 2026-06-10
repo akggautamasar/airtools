@@ -34,7 +34,7 @@ export default function ZipMaker({ tool }: { tool: Tool }) {
 
   return (
     <div className="space-y-6">
-      <UploadZone multiple maxFiles={100} onFilesChange={setFiles} title="Upload files to add to ZIP" description="Any file type supported" />
+      <UploadZone multiple onFilesChange={setFiles} title="Upload files to add to ZIP" description="Any file type supported" />
       {files.length > 0 && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
           <div className="bg-card border border-border rounded-2xl p-6 space-y-3">

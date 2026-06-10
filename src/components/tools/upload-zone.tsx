@@ -30,7 +30,7 @@ const statusIcon = {
 export function UploadZone({
   accept,
   multiple = true,
-  maxFiles = 20,
+  maxFiles = 0, // 0 = unlimited
   maxSize = 100 * 1024 * 1024, // 100MB
   onFilesChange,
   title = "Drop files here or click to upload",
@@ -121,7 +121,7 @@ export function UploadZone({
                 <p className="text-xl font-semibold mb-2">{title}</p>
                 <p className="text-sm text-muted-foreground">{description}</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Max {maxFiles} files, up to {formatFileSize(maxSize)} each
+                  {maxFiles > 0 ? `Max ${maxFiles} files, up` : "Unlimited files, up"} to {formatFileSize(maxSize)} each
                 </p>
               </div>
               <Button variant="outline" size="lg" type="button">

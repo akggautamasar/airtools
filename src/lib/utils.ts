@@ -44,6 +44,30 @@ export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// Maps over items with up to `concurrency` tasks in flight, preserving
+// input order in the results. Failed items resolve to null.
+export async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T, index: number) => Promise<R>
+): Promise<(R | null)[]> {
+  const results: (R | null)[] = new Array(items.length).fill(null);
+  let next = 0;
+  const workers = Array.from({ length: Math.min(concurrency, items.length) }, async () => {
+    while (next < items.length) {
+      const i = next++;
+      try {
+        results[i] = await fn(items[i], i);
+      } catch (e) {
+        console.error(e);
+        results[i] = null;
+      }
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
+
 export const ACCEPTED_PDF_TYPES = {
   "application/pdf": [".pdf"],
 };

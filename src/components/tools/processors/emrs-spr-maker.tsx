@@ -108,7 +108,9 @@ const PART3_ROWS = [
 
 // All fonts are real handwriting typefaces (OFL licensed): Kalam/Tillana by the
 // Indian Type Foundry, plus two cursive faces matched to user-supplied samples.
+// Air1 is a custom handwriting font added for EMRS SPR.
 const HAND_FONTS = [
+  { id: "air1", name: "Air1 (Custom handwriting)", file: "Air1-Regular.ttf", family: "SprAir1" },
   { id: "handwriting-1", name: "Handwriting 1 (Slanted cursive)", file: "LaBelleAurore-Regular.ttf", family: "SprLaBelleAurore" },
   { id: "handwriting-2", name: "Handwriting 2 (Round cursive)", file: "CedarvilleCursive-Regular.ttf", family: "SprCedarville" },
   { id: "kalam", name: "Kalam", file: "Kalam-Regular.ttf", family: "SprKalam" },

@@ -1,5 +1,16 @@
 # AirTools changelog
 
+## 2026-10-16 — PDF Studio enhancement (feature review)
+- Upgraded existing `edit-pdf` Konva editor instead of replacing its annotation processor.
+- Added page thumbnails, navigation, reorder/remove/reset, selectable-text search, responsive zoom and fit-width.
+- Added 30-step markup undo/redo, selected text size/color editing, keyboard shortcut support and better error handling.
+- Added safer PNG/JPEG insertion limits (5 MiB), PDF size/page/pixel limits to protect browser memory.
+- Added **Layered export** preserving source PDF content when unmodified, or copying reordered pages when needed. This is *not* secure redaction.
+- Added **Flattened export** constructing a new image-only PDF from the visible pages/overlays; source text, links and forms are not copied into output. Quality, searchability and accessibility are reduced.
+- Added page-order and canvas text wrapping tests.
+- Production deployment status is separate from source integration. Confirm representative PDF sample output and rotated/complex cases before claiming high-fidelity source-text editing.
+
+
 ## 2026-10-16 — Document Consistency Radar
 - Added a differentiated local application-record comparison workflow for name, initials, name order, birth date, and parent-name discrepancies.
 - Sources: user-selected PDF, DOCX, TXT and image records; selectable PDF/DOCX text suggests values without auto-accepting them. Optional English OCR for image records, using Tesseract language assets.

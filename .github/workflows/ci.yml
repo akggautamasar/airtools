@@ -13,8 +13,8 @@ jobs:
           node-version: "22"
           cache: npm
       - run: npm ci
-      - name: ZIP validation unit tests
-        run: node --experimental-strip-types --test tests/archive-safety.test.mjs
+      - name: Browser processor unit tests
+        run: node --experimental-strip-types --test tests/*.test.mjs
       - name: TypeScript
         run: npx tsc --noEmit
       - name: ESLint

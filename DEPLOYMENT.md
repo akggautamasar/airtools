@@ -7,7 +7,7 @@ The main application is the existing **Next.js 16 / React 19 / TypeScript** proj
 git clone https://github.com/akggautamasar/airtools.git
 cd airtools
 npm ci
-node --experimental-strip-types --test tests/archive-safety.test.mjs
+node --experimental-strip-types --test tests/*.test.mjs
 npx tsc --noEmit
 npm run lint
 npm run build
@@ -40,3 +40,6 @@ Use your real Worker name, not a fabricated URL. Verify HTTP status, output imag
 - Confirm homepage links, redirects, sitemap/robots, accessible interaction and mobile layout.
 
 The pull request is a safe review milestone, **not proof** that the live website changed.
+
+## New browser tools (follow-up)
+Nine routes require no additional environment variables, accounts or processing services. Run CI and test CSV/JSON round trips, PDF metadata, image dimensions, SHA-256 against a known checksum, signatures, URL encoding, timestamp edge cases and text differences. Uploaded files for these tools are processed in the browser.

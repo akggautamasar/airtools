@@ -126,6 +126,69 @@ function URLImage(props: Omit<Konva.ImageConfig, "image"> & { src: string }) {
   return <KonvaImage image={img} {...rest} />;
 }
 
+function SignaturePad({ onInsert }: { onInsert: (dataUrl: string) => void }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const isDrawing = useRef(false);
+  const [hasDrawing, setHasDrawing] = useState(false);
+  const getCoords = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = event.currentTarget;
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: (event.clientX - rect.left) * canvas.width / rect.width,
+      y: (event.clientY - rect.top) * canvas.height / rect.height,
+    };
+  };
+  const begin = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = event.currentTarget;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    event.preventDefault();
+    canvas.setPointerCapture(event.pointerId);
+    const point = getCoords(event);
+    ctx.strokeStyle = "#17212f";
+    ctx.lineWidth = 3;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    ctx.moveTo(point.x, point.y);
+    ctx.lineTo(point.x + 0.1, point.y + 0.1);
+    ctx.stroke();
+    isDrawing.current = true;
+    setHasDrawing(true);
+  };
+  const move = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!isDrawing.current) return;
+    event.preventDefault();
+    const point = getCoords(event);
+    const ctx = event.currentTarget.getContext("2d");
+    if (!ctx) return;
+    ctx.lineTo(point.x, point.y);
+    ctx.stroke();
+  };
+  const end = () => { isDrawing.current = false; };
+  const clear = () => {
+    const canvas = canvasRef.current;
+    canvas?.getContext("2d")?.clearRect(0, 0, canvas.width, canvas.height);
+    setHasDrawing(false);
+  };
+  return (
+    <details className="rounded-xl border border-border bg-card p-4">
+      <summary className="font-semibold cursor-pointer">Sign PDF — draw with finger, pen or mouse</summary>
+      <p className="mt-2 text-sm text-muted-foreground">Draw a signature in the box, then insert it on the selected page. This is a visual signature image, not a cryptographic or legally verified certificate-based signature.</p>
+      <canvas ref={canvasRef} width={640} height={180} aria-label="Draw your signature" role="img"
+        onPointerDown={begin} onPointerMove={move} onPointerUp={end} onPointerCancel={end}
+        className="w-full mt-3 bg-white border-2 border-dashed border-slate-300 rounded-xl touch-none cursor-crosshair"
+        style={{ aspectRatio: "640/180" }} />
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Button type="button" variant="outline" size="sm" onClick={clear}>Clear signature</Button>
+        <Button type="button" variant="gradient" size="sm" disabled={!hasDrawing} onClick={() => {
+          if (canvasRef.current && hasDrawing) { onInsert(canvasRef.current.toDataURL("image/png")); clear(); }
+        }}>Insert signature on page</Button>
+      </div>
+    </details>
+  );
+}
+
 const TOOLS: { id: ToolMode; label: string; icon: React.ElementType }[] = [
   { id: "select", label: "Select", icon: MousePointer2 },
   { id: "edittext", label: "Edit Text", icon: TextCursorInput },
@@ -828,6 +891,13 @@ export default function EditPDF({ tool }: { tool: Tool }) {
             </div>
           </div>
 
+          <SignaturePad onInsert={(src) => {
+            saveUndo();
+            const id = generateId();
+            addElement({ id, type: "image", x: 55, y: 55, width: 260, height: 74, color: "#17212f", src });
+            setSelectedId(id);
+            setActiveTool("select");
+          }} />
           {selectedElement && (
             <div className="rounded-xl border border-border bg-card p-3 flex flex-wrap items-center gap-3 text-sm">
               <span className="font-medium">Selected: {selectedElement.type}</span>

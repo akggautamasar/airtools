@@ -115,3 +115,10 @@ These were added on the follow-up branch after the 74-route source audit. They a
 - Compares user-confirmed full name, date of birth, and parent names across up to eight records. Files: PDF, DOCX, TXT, JPG, PNG, WebP; 12 MiB/file, first 25 PDF pages checked for text suggestions.
 - No extraction is treated as authoritative; signed/personal records and scanned images may not expose reliable text. Optional OCR may download model assets but does not upload the document.
 - Exports optional-value JSON/TXT mismatch reports, with sensitive values omitted by default. Not an official verification or guarantee of portal acceptance.
+
+## PDF Studio enhancement (2026-10-16)
+
+- Existing route: `/tools/edit-pdf`; processor: `src/components/tools/processors/edit-pdf.tsx`.
+- New: page thumbnails/search/reorder/removal, responsive zoom, 30-step markup undo/redo, selected formatting, image upload controls, explicit export types.
+- Export modes: layered (preserves source PDF content when page order unchanged; **whiteout is not secure redaction**) and flattened (new image-only PDF, original text and interactivity stripped). Flattening can reduce resolution/searchability/accessibility.
+- Status: PARTIAL until file-based browser verification and regression tests. **True in-place editing of PDF content streams is NOT implemented**; the existing-text tool is a visual cover/replacement overlay. Fidelity varies with fonts, source rotation, layout, complex forms and annotations.

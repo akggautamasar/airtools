@@ -362,7 +362,8 @@ export default function EditPDF({ tool }: { tool: Tool }) {
       const pdfjsLib = await import("pdfjs-dist");
       pdfjsLib.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
       const bytes = await f[0].file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+      const pdfTask = pdfjsLib.getDocument({ data: bytes });
+      const pdf = await pdfTask.promise;
       const newPages: PageData[] = [];
       if (pdf.numPages > PDF_STUDIO_LIMITS.pages) throw new Error("This editor supports up to 30 pages per file.");
       let totalPixels = 0;
@@ -405,7 +406,7 @@ export default function EditPDF({ tool }: { tool: Tool }) {
       setPages(newPages);
       setPageOrder(newPages.map((_, i) => i));
       setZoom(Math.max(0.35, Math.min(1, (window.innerWidth - 90) / (newPages[0]?.width || 1))));
-      await pdf.destroy();
+      await pdfTask.destroy();
     } catch (e) {
       console.error(e);
       setError(e instanceof Error ? e.message : "Could not load PDF.");

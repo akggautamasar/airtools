@@ -101,17 +101,21 @@ function dataUrlToBytes(dataUrl: string): Uint8Array {
 }
 
 function useHtmlImage(src?: string): HTMLImageElement | null {
-  const [img, setImg] = useState<HTMLImageElement | null>(null);
+  const [loaded, setLoaded] = useState<{ src: string; image: HTMLImageElement } | null>(null);
   useEffect(() => {
-    if (!src) {
-      setImg(null);
-      return;
-    }
+    if (!src) return;
+    let active = true;
     const image = new window.Image();
-    image.onload = () => setImg(image);
+    image.onload = () => {
+      if (active) setLoaded({ src, image });
+    };
     image.src = src;
+    return () => {
+      active = false;
+      image.onload = null;
+    };
   }, [src]);
-  return img;
+  return loaded?.src === src ? loaded.image : null;
 }
 
 function URLImage(props: Omit<Konva.ImageConfig, "image"> & { src: string }) {

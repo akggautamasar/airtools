@@ -513,92 +513,166 @@ export default function EditPDF({ tool }: { tool: Tool }) {
     updateElement(el.id, patch);
   };
 
+  const rasterizePage = async (data: PageData, edits: EditElement[]): Promise<Blob> => {
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.ceil(data.width));
+    canvas.height = Math.max(1, Math.ceil(data.height));
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Canvas is not available on this device.");
+    const load = (src: string) => new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new window.Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error("Cannot draw an inserted image."));
+      img.src = src;
+    });
+    const background = await load(data.dataUrl);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(background, 0, 0, data.width, data.height);
+
+    for (const el of edits) {
+      ctx.save();
+      ctx.globalAlpha = el.opacity ?? 1;
+      ctx.translate(el.x, el.y);
+      ctx.rotate((el.rotation || 0) * Math.PI / 180);
+      if (el.type === "rect") {
+        ctx.fillStyle = el.color;
+        ctx.fillRect(0, 0, el.width || 0, el.height || 0);
+      } else if (el.type === "circle") {
+        ctx.fillStyle = el.color;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, Math.abs(el.width || 0) / 2, Math.abs(el.height || 0) / 2, 0, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (el.type === "draw" || el.type === "line") {
+        const pts = el.points || [];
+        if (pts.length >= 4) {
+          ctx.beginPath();
+          ctx.lineWidth = el.strokeWidth || 2;
+          ctx.strokeStyle = el.color;
+          ctx.lineCap = "round";
+          ctx.lineJoin = "round";
+          ctx.moveTo(pts[0], pts[1]);
+          for (let i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i], pts[i + 1]);
+          ctx.stroke();
+        }
+      } else if (el.type === "image" && el.src) {
+        const image = await load(el.src);
+        ctx.drawImage(image, 0, 0, el.width || 0, el.height || 0);
+      } else if (el.type === "text") {
+        const size = el.fontSize || 16;
+        ctx.font = size + 'px Arial, "Noto Sans", sans-serif';
+        ctx.textBaseline = "top";
+        ctx.fillStyle = el.color;
+        const lines = wrapCanvasText(el.text || "", el.width || 250, (value) => ctx.measureText(value).width);
+        for (let i = 0; i < lines.length; i++) ctx.fillText(lines[i], 0, i * size * 1.2);
+      }
+      ctx.restore();
+    }
+    const result = await new Promise<Blob>((resolve, reject) =>
+      canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("Cannot export page image.")), "image/jpeg", 0.93)
+    );
+    canvas.width = 0;
+    canvas.height = 0;
+    return result;
+  };
+
   const handleExport = async () => {
-    if (!files.length || !pages.length) return;
+    if (!files.length || !pageOrder.length || exporting) return;
     setExporting(true);
+    setError("");
     try {
-      const bytes = await files[0].file.arrayBuffer();
-      const doc = await PDFDocument.load(bytes, { ignoreEncryption: true });
-      const pdfPages = doc.getPages();
-      const font = await doc.embedFont(StandardFonts.Helvetica);
-
-      for (let i = 0; i < pdfPages.length; i++) {
-        const pdfPage = pdfPages[i];
-        const pData = pages[i];
-        if (!pData) continue;
-        const scale = pData.width / pData.pdfWidth;
-        const els = elementsByPage[i] || [];
-
-        for (const el of els) {
-          const c = hexToRgb(el.color);
-          const opacity = el.opacity ?? 1;
-
-          if (el.type === "rect") {
-            const w = (el.width || 0) / scale;
-            const h = (el.height || 0) / scale;
-            pdfPage.drawRectangle({
-              x: el.x / scale,
-              y: pData.pdfHeight - el.y / scale - h,
-              width: w,
-              height: h,
-              color: rgb(c.r, c.g, c.b),
-              opacity,
-              rotate: degrees(el.rotation || 0),
-            });
-          } else if (el.type === "circle") {
-            pdfPage.drawEllipse({
-              x: el.x / scale,
-              y: pData.pdfHeight - el.y / scale,
-              xScale: (el.width || 0) / 2 / scale,
-              yScale: (el.height || 0) / 2 / scale,
-              color: rgb(c.r, c.g, c.b),
-              opacity,
-            });
-          } else if (el.type === "line" || el.type === "draw") {
-            const pts = el.points || [];
-            for (let p = 0; p < pts.length - 2; p += 2) {
-              pdfPage.drawLine({
-                start: { x: pts[p] / scale, y: pData.pdfHeight - pts[p + 1] / scale },
-                end: { x: pts[p + 2] / scale, y: pData.pdfHeight - pts[p + 3] / scale },
-                thickness: (el.strokeWidth || 2) / scale,
-                color: rgb(c.r, c.g, c.b),
-                opacity,
+      const input = await files[0].file.arrayBuffer();
+      const source = await PDFDocument.load(input);
+      const flattened = exportMode === "flattened";
+      const originalOrder = isOriginalPageOrder(pageOrder, pages.length);
+      let target: PDFDocument;
+      if (flattened) {
+        // A new document containing ONLY rasterized page pixels removes the source
+        // page text/annotations, unlike putting a visual white rectangle over them.
+        target = await PDFDocument.create();
+        for (const originalIndex of pageOrder) {
+          const data = pages[originalIndex];
+          const image = await rasterizePage(data, elementsByPage[originalIndex] || []);
+          const embedded = await target.embedJpg(await image.arrayBuffer());
+          const page = target.addPage([data.pdfWidth, data.pdfHeight]);
+          page.drawImage(embedded, { x: 0, y: 0, width: data.pdfWidth, height: data.pdfHeight });
+        }
+      } else {
+        target = originalOrder ? source : await PDFDocument.create();
+        if (!originalOrder) {
+          const copied = await target.copyPages(source, pageOrder);
+          copied.forEach((pdfPage) => target.addPage(pdfPage));
+        }
+        const font = await target.embedFont(StandardFonts.Helvetica);
+        const outputPages = target.getPages();
+        for (let i = 0; i < pageOrder.length; i++) {
+          const originalIndex = pageOrder[i];
+          const pdfPage = outputPages[i];
+          const data = pages[originalIndex];
+          const edits = elementsByPage[originalIndex] || [];
+          if (!edits.length) continue;
+          if (pdfPage.getRotation().angle % 360 !== 0) {
+            throw new Error("This PDF has rotated source pages. Use Flattened export to keep markup aligned.");
+          }
+          const scale = data.width / data.pdfWidth;
+          for (const el of edits) {
+            const c = hexToRgb(el.color), opacity = el.opacity ?? 1;
+            if (el.type === "rect") {
+              const w = (el.width || 0) / scale, h = (el.height || 0) / scale;
+              pdfPage.drawRectangle({
+                x: el.x / scale,
+                y: data.pdfHeight - el.y / scale - h,
+                width: w, height: h,
+                color: rgb(c.r, c.g, c.b), opacity,
+                rotate: degrees(el.rotation || 0),
+              });
+            } else if (el.type === "circle") {
+              pdfPage.drawEllipse({
+                x: el.x / scale, y: data.pdfHeight - el.y / scale,
+                xScale: (el.width || 0) / 2 / scale,
+                yScale: (el.height || 0) / 2 / scale,
+                color: rgb(c.r, c.g, c.b), opacity,
+              });
+            } else if (el.type === "line" || el.type === "draw") {
+              const pts = el.points || [];
+              for (let p = 0; p < pts.length - 2; p += 2) {
+                pdfPage.drawLine({
+                  start: { x: pts[p] / scale, y: data.pdfHeight - pts[p + 1] / scale },
+                  end: { x: pts[p + 2] / scale, y: data.pdfHeight - pts[p + 3] / scale },
+                  thickness: (el.strokeWidth || 2) / scale,
+                  color: rgb(c.r, c.g, c.b), opacity,
+                });
+              }
+            } else if (el.type === "text") {
+              const size = (el.fontSize || 16) / scale;
+              pdfPage.drawText(el.text || "", {
+                x: el.x / scale, y: data.pdfHeight - el.y / scale - size,
+                size, font, color: rgb(c.r, c.g, c.b),
+                rotate: degrees(el.rotation || 0), opacity,
+                lineHeight: size * 1.2,
+                maxWidth: (el.width || 240) / scale,
+              });
+            } else if (el.type === "image" && el.src) {
+              const imgBytes = dataUrlToBytes(el.src);
+              const embedded = el.src.startsWith("data:image/png") ? await target.embedPng(imgBytes) : await target.embedJpg(imgBytes);
+              const w = (el.width || 0) / scale, h = (el.height || 0) / scale;
+              pdfPage.drawImage(embedded, {
+                x: el.x / scale, y: data.pdfHeight - el.y / scale - h,
+                width: w, height: h, rotate: degrees(el.rotation || 0), opacity,
               });
             }
-          } else if (el.type === "text") {
-            const size = (el.fontSize || 16) / scale;
-            pdfPage.drawText(el.text || "", {
-              x: el.x / scale,
-              y: pData.pdfHeight - el.y / scale - size,
-              size,
-              font,
-              color: rgb(c.r, c.g, c.b),
-              rotate: degrees(el.rotation || 0),
-              opacity,
-            });
-          } else if (el.type === "image" && el.src) {
-            const imgBytes = dataUrlToBytes(el.src);
-            const embedded = el.src.startsWith("data:image/png") ? await doc.embedPng(imgBytes) : await doc.embedJpg(imgBytes);
-            const w = (el.width || 0) / scale;
-            const h = (el.height || 0) / scale;
-            pdfPage.drawImage(embedded, {
-              x: el.x / scale,
-              y: pData.pdfHeight - el.y / scale - h,
-              width: w,
-              height: h,
-              rotate: degrees(el.rotation || 0),
-              opacity,
-            });
           }
         }
       }
-
-      const out = await doc.save();
-      downloadBlob(new Blob([out.buffer as ArrayBuffer], { type: "application/pdf" }), `edited-${files[0].name}`);
+      const output = await target.save();
+      const validation = await PDFDocument.load(output);
+      if (validation.getPageCount() !== pageOrder.length) throw new Error("Export page count failed validation.");
+      downloadBlob(new Blob([new Uint8Array(output)], { type: "application/pdf" }), (flattened ? "flattened-" : "edited-") + files[0].name);
     } catch (e) {
-      console.error(e);
+      setError(e instanceof Error ? e.message : "Failed to export PDF.");
+    } finally {
+      setExporting(false);
     }
-    setExporting(false);
   };
 
   const startTextEdit = (el: EditElement) => setEditingText(el);

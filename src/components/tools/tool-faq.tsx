@@ -6,26 +6,25 @@ interface ToolFAQProps {
 }
 
 function generateFAQs(tool: Tool) {
+  const external = tool.slug === "upscale-image" || tool.slug === "remove-background";
   return [
     {
-      q: `Is ${tool.name} free to use?`,
-      a: `Yes, ${tool.name} is completely free with no registration required. You can use it as many times as you need.`,
+      q: "What types of files or inputs does " + tool.name + " support?",
+      a: "Accepted formats and limits are shown in the tool's upload area or instructions. Capabilities vary by processor, and corrupted or protected files may be unsupported.",
     },
     {
-      q: `Are my files safe when using ${tool.name}?`,
-      a: `Your files are processed directly in your browser. We never upload or store your files on our servers, ensuring complete privacy and security.`,
+      q: "How does " + tool.name + " handle my files?",
+      a: external
+        ? "This tool uses an image-processing model or service. Check its on-page information before processing sensitive images. External services may receive file contents."
+        : "Many AirTools processors work locally in your browser. This page does not guarantee that every third-party integration is local; review the specific processing notice.",
     },
     {
-      q: `How long does ${tool.name} take to process files?`,
-      a: `Processing is nearly instant for most files. The time depends on the file size and your device's performance. Typically completes in seconds.`,
+      q: "Will " + tool.name + " preserve everything exactly?",
+      a: "Not always. Conversion, compression, OCR and editing may change formatting, image quality or metadata. Check output files before using them for important work.",
     },
     {
-      q: `What is the maximum file size for ${tool.name}?`,
-      a: `The file size limit depends on your device's available memory. For best results, we recommend files under 100MB. Larger file support is planned.`,
-    },
-    {
-      q: `Can I use ${tool.name} on my mobile device?`,
-      a: `Yes! AirTools is fully responsive and optimized for mobile devices. You can use all tools on any smartphone or tablet.`,
+      q: "How long will processing take?",
+      a: "Processing depends on the file size, selected settings, available device memory, and any external service required.",
     },
   ];
 }

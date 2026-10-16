@@ -62,6 +62,9 @@ const WatermarkImage = dynamic(() => import("@/components/tools/processors/water
 const OCRImage = dynamic(() => import("@/components/tools/processors/ocr-image"), { loading: () => <ToolLoader /> });
 const TextTools = dynamic(() => import("@/components/tools/processors/text-tools"), { loading: () => <ToolLoader /> });
 const EMRSSprMaker = dynamic(() => import("@/components/tools/processors/emrs-spr-maker"), { loading: () => <ToolLoader /> });
+const DataConverter = dynamic(() => import("@/components/tools/processors/data-converter"), { loading: () => <ToolLoader /> });
+const FileInspector = dynamic(() => import("@/components/tools/processors/file-inspector"), { loading: () => <ToolLoader /> });
+const TextHelpers = dynamic(() => import("@/components/tools/processors/text-helpers"), { loading: () => <ToolLoader /> });
 
 function ToolLoader() {
   return (
@@ -146,6 +149,15 @@ const toolMap: Record<string, React.ComponentType<{ tool: Tool }>> = {
   "base64-encoder": TextTools,
   "hash-generator": TextTools,
   "emrs-spr-maker": EMRSSprMaker,
+  "pdf-metadata": FileInspector,
+  "csv-to-json": DataConverter,
+  "json-to-csv": DataConverter,
+  "image-info": FileInspector,
+  "file-checksum": FileInspector,
+  "file-signature": FileInspector,
+  "url-encoder": TextHelpers,
+  "timestamp-converter": TextHelpers,
+  "text-diff": TextHelpers,
 };
 
 interface Props {

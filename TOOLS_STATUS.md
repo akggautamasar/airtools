@@ -2,7 +2,7 @@
 
 **Scope:** source-level audit of the default branch before this PR plus its focused fixes. This table does **not** certify tools as working. No representative end-to-end outputs could be verified in this session; the public Vercel page was inaccessible through the available web browser. Test status is therefore NOT RUN for every tool.
 
-The registry defines **74 tool routes** (32 PDF, 7 eBook, 24 image, 11 utility). All have explicit mappings in `dynamic-tool-processor.tsx`; mapping alone does not prove a processor works. Shared components and existing routing are preserved.
+The initial registry defines **74 tool routes** (32 PDF, 7 eBook, 24 image, 11 utility). All have explicit mappings in `dynamic-tool-processor.tsx`; mapping alone does not prove a processor works. Shared components and existing routing are preserved.
 
 **Status meanings:** WORKING = actual successful representative output verified; PARTIAL = implementation exists but feature/fidelity/test gaps remain; UI ONLY = interface without real operation; BROKEN = demonstrated incorrect output/failure; PLANNED = not implemented; BLOCKED = depends on an unverified/unavailable backend or required authorization. PARTIAL is a conservative **audit status**, not proof of working behavior.
 
@@ -84,6 +84,22 @@ The registry defines **74 tool routes** (32 PDF, 7 eBook, 24 image, 11 utility).
 | Base64 Encoder | `/tools/base64-encoder` | utility | TextTools | PARTIAL | Tool-specific text / ZIP / images / form data | Not fully audited | **NOT RUN** | Code route exists; representative input/output and error cases not verified. |
 | Hash Generator | `/tools/hash-generator` | utility | TextTools | PARTIAL | Tool-specific text / ZIP / images / form data | Not fully audited | **NOT RUN** | Code route exists; representative input/output and error cases not verified. |
 | EMRS SPR Maker | `/tools/emrs-spr-maker` | utility | EMRSSprMaker | PARTIAL | Tool-specific text / ZIP / images / form data | Not fully audited | **NOT RUN** | Code route exists; representative input/output and error cases not verified. |
+
+## Additional browser tools — 9 new routes (2026-10-16)
+
+These were added on the follow-up branch after the 74-route source audit. They all have processor code, but no site deployment is assumed; source-level tests are included and end-to-end browser tests remain a separate requirement.
+
+| Tool | Route | Category | Processor | Status | Formats | Limits | Tests | Notes |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| PDF Metadata Viewer | `/tools/pdf-metadata` | pdf | FileInspector | PARTIAL | PDF | See tool UI | CI + real browser smoke test needed | Processor implemented. Mark WORKING only after representative output tests. |
+| CSV to JSON | `/tools/csv-to-json` | utility | DataConverter | PARTIAL | Input-specific | See tool UI | CI + real browser smoke test needed | Processor implemented. Mark WORKING only after representative output tests. |
+| JSON to CSV | `/tools/json-to-csv` | utility | DataConverter | PARTIAL | Input-specific | See tool UI | CI + real browser smoke test needed | Processor implemented. Mark WORKING only after representative output tests. |
+| Image Dimensions & Info | `/tools/image-info` | image | FileInspector | PARTIAL | PNG / JPG / GIF / WebP / BMP | See tool UI | CI + real browser smoke test needed | Processor implemented. Mark WORKING only after representative output tests. |
+| File SHA-256 Checksum | `/tools/file-checksum` | utility | FileInspector | PARTIAL | Input-specific | See tool UI | CI + real browser smoke test needed | Processor implemented. Mark WORKING only after representative output tests. |
+| File Type Inspector | `/tools/file-signature` | utility | FileInspector | PARTIAL | Input-specific | See tool UI | CI + real browser smoke test needed | Processor implemented. Mark WORKING only after representative output tests. |
+| URL Encoder & Decoder | `/tools/url-encoder` | utility | TextHelpers | PARTIAL | Input-specific | See tool UI | CI + real browser smoke test needed | Processor implemented. Mark WORKING only after representative output tests. |
+| Unix Timestamp Converter | `/tools/timestamp-converter` | utility | TextHelpers | PARTIAL | Input-specific | See tool UI | CI + real browser smoke test needed | Processor implemented. Mark WORKING only after representative output tests. |
+| Text Difference Checker | `/tools/text-diff` | utility | TextHelpers | PARTIAL | Input-specific | See tool UI | CI + real browser smoke test needed | Processor implemented. Mark WORKING only after representative output tests. |
 
 ## High-priority gaps
 - The compressor previously exposed fake quality presets; it now attempts **structural-only** optimization and retains original bytes when rewriting would enlarge the PDF. Image downsampling remains unimplemented.

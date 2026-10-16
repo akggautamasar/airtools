@@ -200,10 +200,10 @@ export default function ConsistencyRadar({ tool: _tool }: { tool: Tool }) {
     version: 1,
     createdAt: new Date().toISOString(),
     notice: "User-confirmed, heuristic comparisons only. Not an official identity verification, legal determination, or acceptance guarantee.",
-    referenceRecord: docs.find((item) => item.id === baseline)?.label || "",
+    referenceRecord: includeValues ? (docs.find((item) => item.id === baseline)?.label || "") : "Reference record " + (docs.findIndex((item) => item.id === baseline) + 1),
     summary,
     comparisons: comparisons.map((row) => includeValues ? row : {
-      documentLabel: row.documentLabel,
+      documentLabel: "Record " + (docs.findIndex((doc) => doc.id === row.documentId) + 1),
       field: row.field,
       kind: row.kind,
       explanation: row.explanation,
@@ -217,7 +217,8 @@ export default function ConsistencyRadar({ tool: _tool }: { tool: Tool }) {
     "",
     ...comparisons.map((row) => {
       const value = includeValues ? ` | reference: ${row.reference || "(missing)"} | observed: ${row.observed || "(missing)"}` : "";
-      return `${row.documentLabel} | ${FIELD_LABELS[row.field]} | ${STATUS[row.kind].title}${value} | ${row.explanation}`;
+      const displayName = includeValues ? row.documentLabel : "Record " + (docs.findIndex((doc) => doc.id === row.documentId) + 1);
+      return `${displayName} | ${FIELD_LABELS[row.field]} | ${STATUS[row.kind].title}${value} | ${row.explanation}`;
     }),
     "",
   ].join("\n");
@@ -235,7 +236,7 @@ export default function ConsistencyRadar({ tool: _tool }: { tool: Tool }) {
           <strong> you must confirm every field against the original document.</strong>
         </p>
         <p className="text-xs text-amber-700 dark:text-amber-400">
-          This is not government verification or legal advice. Small differences can still matter. Scanned PDFs may require manual entry.
+          This is not government verification or legal advice. Small differences can still matter. Scanned PDFs may require manual entry. Date suggestions containing slashes are interpreted as day/month/year, not month/day/year.
         </p>
         <div className="flex flex-wrap gap-2">
           <Button type="button" onClick={demo} variant="outline" size="sm"><FlaskConical className="w-4 h-4 mr-1" />Try fictional example</Button>
@@ -364,7 +365,7 @@ export default function ConsistencyRadar({ tool: _tool }: { tool: Tool }) {
             </div>
             <label className="flex items-start gap-2 text-sm">
               <input type="checkbox" checked={includeValues} onChange={(e) => setIncludeValues(e.target.checked)} className="mt-1" />
-              Include names and dates in the downloaded report (off by default). Reports can contain sensitive personal information.
+              Include names, dates and document labels in the downloaded report (off by default). Document labels or filenames can also contain personal information.
             </label>
             <div className="flex flex-wrap gap-2">
               <Button type="button" size="sm" variant="gradient" onClick={() => downloadBlob(new Blob([reportText], { type: "text/plain;charset=utf-8" }), "document-consistency-review.txt")}>
@@ -374,7 +375,7 @@ export default function ConsistencyRadar({ tool: _tool }: { tool: Tool }) {
                 <Download className="w-4 h-4 mr-1" />Download JSON
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground">No raw OCR text is included in reports. No records are stored in browser local storage. Closing this tab ends the session. Verify discrepancies with the issuing organization.</p>
+            <p className="text-xs text-muted-foreground">By default, exported reports use anonymous record numbers, not filenames. No raw OCR text is included. No records are stored in browser local storage. Closing this tab ends the session. Verify discrepancies with the issuing organization.</p>
           </>
         )}
       </section>

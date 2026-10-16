@@ -1,5 +1,13 @@
 # AirTools changelog
 
+## 2026-10-16 — Document Consistency Radar
+- Added a differentiated local application-record comparison workflow for name, initials, name order, birth date, and parent-name discrepancies.
+- Sources: user-selected PDF, DOCX, TXT and image records; selectable PDF/DOCX text suggests values without auto-accepting them. Optional English OCR for image records, using Tesseract language assets.
+- Manual confirmation is required; the tool never determines identity equivalence or provides legal advice.
+- Reproducible discrepancy statuses, a fictional interactive example, redacted-by-default report exports, bounded file/page limits and unit tests.
+- Do not claim the tool is the first of its kind; comparable research tools and specialized prototypes exist.
+
+
 ## 2026-10-16 — Additional browser tools (follow-up PR)
 - Added nine implemented routes: CSV to JSON, JSON to CSV, PDF Metadata Viewer, Image Dimensions & Info, File SHA-256 Checksum, File Type Inspector, URL Encoder & Decoder, Unix Timestamp Converter, Text Difference Checker.
 - Added bounded CSV and JSON parsing, CSV formula-prefix protection option, file-header signature checks, timestamp parser, and bounded line comparison.

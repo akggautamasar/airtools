@@ -65,6 +65,7 @@ const EMRSSprMaker = dynamic(() => import("@/components/tools/processors/emrs-sp
 const DataConverter = dynamic(() => import("@/components/tools/processors/data-converter"), { loading: () => <ToolLoader /> });
 const FileInspector = dynamic(() => import("@/components/tools/processors/file-inspector"), { loading: () => <ToolLoader /> });
 const TextHelpers = dynamic(() => import("@/components/tools/processors/text-helpers"), { loading: () => <ToolLoader /> });
+const ConsistencyRadar = dynamic(() => import("@/components/tools/processors/consistency-radar"), { loading: () => <ToolLoader /> });
 
 function ToolLoader() {
   return (
@@ -158,6 +159,7 @@ const toolMap: Record<string, React.ComponentType<{ tool: Tool }>> = {
   "url-encoder": TextHelpers,
   "timestamp-converter": TextHelpers,
   "text-diff": TextHelpers,
+  "document-consistency-radar": ConsistencyRadar,
 };
 
 interface Props {

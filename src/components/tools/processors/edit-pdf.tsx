@@ -6,15 +6,16 @@ import { motion } from "framer-motion";
 import {
   Download, Loader2, MousePointer2, Type, Square, Circle as CircleIcon,
   Minus, Pencil, Image as ImageIcon, Trash2, Highlighter, Eraser,
-  ChevronLeft, ChevronRight, TextCursorInput,
+  ChevronLeft, ChevronRight, TextCursorInput, Undo2, Redo2, ZoomIn, ZoomOut, Search, Layers2, MoveLeft, MoveRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UploadZone } from "@/components/tools/upload-zone";
 import { UploadedFile, Tool } from "@/types";
 import { downloadBlob, ACCEPTED_PDF_TYPES, generateId } from "@/lib/utils";
 import { PDFDocument, rgb, degrees, StandardFonts } from "pdf-lib";
+import { PDF_STUDIO_LIMITS, shiftPage, dropPage, isOriginalPageOrder, wrapCanvasText } from "@/lib/pdf-editor-enhancements";
 
-const RENDER_SCALE = 1.5;
+const RENDER_SCALE = 1.25;
 
 type ToolMode = "select" | "text" | "edittext" | "rect" | "circle" | "line" | "draw" | "whiteout" | "highlight" | "image";
 
@@ -142,6 +143,13 @@ export default function EditPDF({ tool }: { tool: Tool }) {
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [pages, setPages] = useState<PageData[]>([]);
   const [pageIndex, setPageIndex] = useState(0);
+  const [pageOrder, setPageOrder] = useState<number[]>([]);
+  const [zoom, setZoom] = useState(0.8);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [error, setError] = useState("");
+  const [exportMode, setExportMode] = useState<"layered" | "flattened">("layered");
+  const [undoStack, setUndoStack] = useState<Record<number, EditElement[]>[]>([]);
+  const [redoStack, setRedoStack] = useState<Record<number, EditElement[]>[]>([]);
   const [elementsByPage, setElementsByPage] = useState<Record<number, EditElement[]>>({});
   const [activeTool, setActiveTool] = useState<ToolMode>("select");
   const [color, setColor] = useState("#ef4444");
@@ -159,25 +167,54 @@ export default function EditPDF({ tool }: { tool: Tool }) {
   const drawingId = useRef<string | null>(null);
   const imageDataCache = useRef<Record<number, ImageData>>({});
 
-  const page = pages[pageIndex];
-  const elements = elementsByPage[pageIndex] || [];
+  const pageKey = pageOrder[pageIndex] ?? 0;
+  const page = pages[pageKey];
+  const elements = elementsByPage[pageKey] || [];
+  const selectedElement = elements.find((el) => el.id === selectedId);
+  const containsVisualCorrections = Object.values(elementsByPage).some((items) => items.some((el) => el.type === "rect" && el.color.toLowerCase() === "#ffffff"));
+  const matches = searchQuery.trim().length > 1
+    ? pageOrder.flatMap((sourceIndex, displayIndex) => pages[sourceIndex]?.textItems
+        .filter((region) => region.text.toLocaleLowerCase().includes(searchQuery.toLocaleLowerCase()))
+        .slice(0, 6).map((region) => ({ page: displayIndex, text: region.text })) || []).slice(0, 18)
+    : [];
+  const saveUndo = useCallback(() => {
+    setUndoStack((prev) => [...prev.slice(-29), elementsByPage]);
+    setRedoStack([]);
+  }, [elementsByPage]);
+  const undo = () => {
+    const previous = undoStack.at(-1);
+    if (!previous) return;
+    setRedoStack((prev) => [...prev.slice(-29), elementsByPage]);
+    setUndoStack((prev) => prev.slice(0, -1));
+    setElementsByPage(previous);
+    setSelectedId(null);
+  };
+  const redo = () => {
+    const next = redoStack.at(-1);
+    if (!next) return;
+    setUndoStack((prev) => [...prev.slice(-29), elementsByPage]);
+    setRedoStack((prev) => prev.slice(0, -1));
+    setElementsByPage(next);
+    setSelectedId(null);
+  };
   const bgImage = useHtmlImage(page?.dataUrl);
 
   const addElement = useCallback((el: EditElement) => {
-    setElementsByPage((prev) => ({ ...prev, [pageIndex]: [...(prev[pageIndex] || []), el] }));
-  }, [pageIndex]);
+    setElementsByPage((prev) => ({ ...prev, [pageKey]: [...(prev[pageKey] || []), el] }));
+  }, [pageKey]);
 
   const updateElement = useCallback((id: string, patch: Partial<EditElement>) => {
     setElementsByPage((prev) => ({
       ...prev,
-      [pageIndex]: (prev[pageIndex] || []).map((el) => (el.id === id ? { ...el, ...patch } : el)),
+      [pageKey]: (prev[pageKey] || []).map((el) => (el.id === id ? { ...el, ...patch } : el)),
     }));
-  }, [pageIndex]);
+  }, [pageKey]);
 
   const deleteElement = useCallback((id: string) => {
-    setElementsByPage((prev) => ({ ...prev, [pageIndex]: (prev[pageIndex] || []).filter((el) => el.id !== id) }));
+    saveUndo();
+    setElementsByPage((prev) => ({ ...prev, [pageKey]: (prev[pageKey] || []).filter((el) => el.id !== id) }));
     setSelectedId(null);
-  }, [pageIndex]);
+  }, [pageKey, saveUndo]);
 
   const getPageImageData = useCallback(async (idx: number): Promise<ImageData | null> => {
     if (imageDataCache.current[idx]) return imageDataCache.current[idx];
@@ -208,11 +245,12 @@ export default function EditPDF({ tool }: { tool: Tool }) {
     );
     if (!region) return;
 
-    const imageData = await getPageImageData(pageIndex);
+    const imageData = await getPageImageData(pageKey);
     const { bg, text } = imageData
       ? sampleRegionColors(imageData, region)
       : { bg: "#ffffff", text: "#000000" };
 
+    saveUndo();
     const padding = 1;
     const coverId = generateId();
     addElement({
@@ -241,26 +279,35 @@ export default function EditPDF({ tool }: { tool: Tool }) {
     setActiveTool("select");
     setSelectedId(textId);
     setEditingText(newEl);
-  }, [page, pageIndex, getPageImageData, addElement]);
+  }, [page, pageKey, getPageImageData, addElement, saveUndo]);
 
   const handleFilesChange = async (f: UploadedFile[]) => {
     setFiles(f);
     setPages([]);
     setElementsByPage({});
+    setPageOrder([]);
+    setUndoStack([]);
+    setRedoStack([]);
     setSelectedId(null);
     setPageIndex(0);
+    setError("");
     if (!f.length) return;
     setLoading(true);
     try {
+      if (f[0].size > PDF_STUDIO_LIMITS.fileBytes) throw new Error("PDF exceeds the 20 MiB editor limit.");
       const pdfjsLib = await import("pdfjs-dist");
       pdfjsLib.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
       const bytes = await f[0].file.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
       const newPages: PageData[] = [];
+      if (pdf.numPages > PDF_STUDIO_LIMITS.pages) throw new Error("This editor supports up to 30 pages per file.");
+      let totalPixels = 0;
       for (let i = 1; i <= pdf.numPages; i++) {
         const pdfPage = await pdf.getPage(i);
         const viewport = pdfPage.getViewport({ scale: RENDER_SCALE });
         const pdfViewport = pdfPage.getViewport({ scale: 1 });
+        totalPixels += Math.ceil(viewport.width) * Math.ceil(viewport.height);
+        if (totalPixels > PDF_STUDIO_LIMITS.renderedPixels) throw new Error("PDF pages exceed the 24-million-pixel browser preview safety limit.");
         const canvas = document.createElement("canvas");
         canvas.width = viewport.width;
         canvas.height = viewport.height;
@@ -292,8 +339,12 @@ export default function EditPDF({ tool }: { tool: Tool }) {
         });
       }
       setPages(newPages);
+      setPageOrder(newPages.map((_, i) => i));
+      setZoom(Math.max(0.35, Math.min(1, (window.innerWidth - 90) / (newPages[0]?.width || 1))));
+      await pdf.destroy();
     } catch (e) {
       console.error(e);
+      setError(e instanceof Error ? e.message : "Could not load PDF.");
     }
     setLoading(false);
   };
@@ -304,14 +355,16 @@ export default function EditPDF({ tool }: { tool: Tool }) {
       return;
     }
     const stage = e.target.getStage();
-    const pos = stage?.getPointerPosition();
-    if (!pos) return;
+    const pointer = stage?.getPointerPosition();
+    if (!pointer) return;
+    const pos = { x: pointer.x / zoom, y: pointer.y / zoom };
 
     if (activeTool === "edittext") {
       void handleEditTextClick(pos);
       return;
     }
 
+    saveUndo();
     const id = generateId();
     let el: EditElement;
     if (activeTool === "text") {
@@ -339,10 +392,11 @@ export default function EditPDF({ tool }: { tool: Tool }) {
   const handleStageMouseMove = (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
     if (!isDrawing.current || !drawingId.current) return;
     const stage = e.target.getStage();
-    const pos = stage?.getPointerPosition();
-    if (!pos) return;
+    const pointer = stage?.getPointerPosition();
+    if (!pointer) return;
+    const pos = { x: pointer.x / zoom, y: pointer.y / zoom };
     const id = drawingId.current;
-    const current = (elementsByPage[pageIndex] || []).find((el) => el.id === id);
+    const current = (elementsByPage[pageKey] || []).find((el) => el.id === id);
     if (!current) return;
 
     if (current.type === "draw") {
@@ -369,7 +423,7 @@ export default function EditPDF({ tool }: { tool: Tool }) {
     const id = drawingId.current;
     isDrawing.current = false;
     drawingId.current = null;
-    const current = (elementsByPage[pageIndex] || []).find((el) => el.id === id);
+    const current = (elementsByPage[pageKey] || []).find((el) => el.id === id);
     if (current?.type === "rect" && ((current.width || 0) < 0 || (current.height || 0) < 0)) {
       const x = (current.width || 0) < 0 ? current.x + (current.width || 0) : current.x;
       const y = (current.height || 0) < 0 ? current.y + (current.height || 0) : current.y;
@@ -382,6 +436,12 @@ export default function EditPDF({ tool }: { tool: Tool }) {
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!["image/png", "image/jpeg"].includes(file.type) || file.size > PDF_STUDIO_LIMITS.imageBytes) {
+      setError("Insert a PNG or JPEG image no larger than 5 MiB.");
+      e.target.value = "";
+      return;
+    }
+    setError("");
     const reader = new FileReader();
     reader.onload = () => {
       const src = reader.result as string;
@@ -392,6 +452,7 @@ export default function EditPDF({ tool }: { tool: Tool }) {
         const w = Math.min(maxW, img.width);
         const h = w / ratio;
         const id = generateId();
+        saveUndo();
         addElement({ id, type: "image", x: 60, y: 60, width: w, height: h, color: "#000000", src });
         setSelectedId(id);
         setActiveTool("select");
@@ -426,6 +487,10 @@ export default function EditPDF({ tool }: { tool: Tool }) {
   // Keyboard delete
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && !["INPUT", "TEXTAREA"].includes((e.target as HTMLElement)?.tagName)) {
+        if (e.key.toLowerCase() === "z") { e.preventDefault(); if (e.shiftKey) redo(); else undo(); return; }
+        if (e.key.toLowerCase() === "y") { e.preventDefault(); redo(); return; }
+      }
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA") return;
       if ((e.key === "Delete" || e.key === "Backspace") && selectedId) {
@@ -434,7 +499,7 @@ export default function EditPDF({ tool }: { tool: Tool }) {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [selectedId, deleteElement]);
+  }, [selectedId, deleteElement, undoStack, redoStack, elementsByPage]);
 
   const handleTransformEnd = (el: EditElement, node: Konva.Node) => {
     const scaleX = node.scaleX();
@@ -539,7 +604,10 @@ export default function EditPDF({ tool }: { tool: Tool }) {
   const startTextEdit = (el: EditElement) => setEditingText(el);
 
   const finishTextEdit = (text: string) => {
-    if (editingText) updateElement(editingText.id, { text });
+    if (editingText && text !== editingText.text) {
+      saveUndo();
+      updateElement(editingText.id, { text });
+    }
     setEditingText(null);
   };
 

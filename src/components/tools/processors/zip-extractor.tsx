@@ -7,6 +7,7 @@ import { UploadZone } from "@/components/tools/upload-zone";
 import { UploadedFile, Tool } from "@/types";
 import { downloadBlob, formatFileSize } from "@/lib/utils";
 import JSZip from "jszip";
+import { ZIP_LIMITS, safeZipName, validateZipEntries } from "@/lib/archive-safety";
 
 interface ExtractedFile { name: string; blob: Blob; size: number; }
 
@@ -22,28 +23,40 @@ export default function ZipExtractor({ tool }: { tool: Tool }) {
     setExtracted([]);
     setError("");
     try {
+      if (files[0].size > ZIP_LIMITS.archiveBytes) throw new Error("ZIP exceeds 25 MiB limit.");
       const bytes = await files[0].file.arrayBuffer();
       const zip = await JSZip.loadAsync(bytes);
+      const entries = Object.values(zip.files).filter((entry) => !entry.dir);
+      validateZipEntries(entries.map((entry) => {
+        const raw = (entry as unknown as { _data: { compressedSize?: number; uncompressedSize?: number } })._data;
+        return {
+          name: entry.unsafeOriginalName || entry.name,
+          compressedSize: raw?.compressedSize ?? NaN,
+          uncompressedSize: raw?.uncompressedSize ?? NaN,
+        };
+      }), files[0].size);
       const results: ExtractedFile[] = [];
-      await Promise.all(
-        Object.entries(zip.files).map(async ([name, f]) => {
-          if (!f.dir) {
-            const blob = await f.async("blob");
-            results.push({ name, blob, size: blob.size });
-          }
-        })
-      );
+      let totalBytes = 0;
+      for (const entry of entries) {
+        const name = safeZipName(entry.unsafeOriginalName || entry.name);
+        if (!name) throw new Error("Unsafe path in ZIP.");
+        const bytes = await entry.async("uint8array");
+        totalBytes += bytes.byteLength;
+        if (bytes.byteLength > ZIP_LIMITS.itemBytes || totalBytes > ZIP_LIMITS.totalBytes) throw new Error("Extracted data exceeds safety limits.");
+        const blob = new Blob([new Uint8Array(bytes)], { type: "application/octet-stream" });
+        results.push({ name, blob, size: blob.size });
+      }
       setExtracted(results.sort((a, b) => a.name.localeCompare(b.name)));
-    } catch (e) { setError("Failed to extract ZIP. File may be corrupted or encrypted."); }
+    } catch (e) { setError(e instanceof Error ? e.message : "Failed to extract ZIP."); }
     setProcessing(false);
   };
 
   return (
     <div className="space-y-6">
-      <UploadZone accept={{ "application/zip": [".zip"] }} multiple={false} onFilesChange={setFiles} title="Upload ZIP file to extract" description="Only ZIP files supported" />
+      <UploadZone accept={{ "application/zip": [".zip"] }} multiple={false} onFilesChange={(selected) => { setFiles(selected); setExtracted([]); setError(""); }} title="Upload ZIP file to extract" description="ZIP only · max 25 MiB input, 100 files, 80 MiB extracted" />
       {files.length > 0 && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-          {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
+          {error && <p role="alert" className="text-sm text-red-500 mb-4">{error}</p>}
           <Button onClick={handleExtract} disabled={processing} size="lg" className="w-full" variant="gradient">
             {processing ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Extracting...</> : <><FolderOpen className="w-4 h-4 mr-2" />Extract ZIP</>}
           </Button>
@@ -69,7 +82,7 @@ export default function ZipExtractor({ tool }: { tool: Tool }) {
                   <p className="text-sm font-medium truncate">{f.name}</p>
                   <p className="text-xs text-muted-foreground">{formatFileSize(f.size)}</p>
                 </div>
-                <Button size="sm" variant="ghost" onClick={() => downloadBlob(f.blob, f.name)}>
+                <Button size="sm" variant="ghost" onClick={() => downloadBlob(f.blob, f.name.split("/").pop() || "file")}>
                   <Download className="w-4 h-4" />
                 </Button>
               </div>

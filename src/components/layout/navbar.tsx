@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import { motion, AnimatePresence } from "framer-motion";
@@ -45,7 +45,7 @@ export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<ReturnType<typeof searchTools>>([]);
+  const searchResults = useMemo(() => searchQuery.trim() ? searchTools(searchQuery).slice(0, 6) : [], [searchQuery]);
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -53,14 +53,6 @@ export function Navbar() {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
-
-  useEffect(() => {
-    if (searchQuery.trim()) {
-      setSearchResults(searchTools(searchQuery).slice(0, 6));
-    } else {
-      setSearchResults([]);
-    }
-  }, [searchQuery]);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {

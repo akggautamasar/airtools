@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 
 const features = [
   { icon: Zap, label: "Lightning Fast" },
-  { icon: Shield, label: "100% Secure" },
+  { icon: Shield, label: "Privacy explained by tool" },
   { icon: Globe, label: "No Install Required" },
 ];
 
@@ -39,7 +39,7 @@ export function Hero() {
           className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium mb-8 border border-primary/20"
         >
           <Sparkles className="w-4 h-4" />
-          <span>60+ Free Tools. No Registration.</span>
+          <span>PDF, image and utility tools in one place</span>
         </motion.div>
 
         {/* Headline */}
@@ -63,7 +63,7 @@ export function Hero() {
         >
           Compress, Convert, Edit and Optimize PDFs, Images and Files in Seconds.
           <br className="hidden sm:block" />
-          No signup. No watermarks. 100% free.
+          Many tools work locally; check each tool for limits and file handling.
         </motion.p>
 
         {/* CTAs */}
@@ -119,31 +119,32 @@ export function Hero() {
               <div className="w-3 h-3 rounded-full bg-yellow-400" />
               <div className="w-3 h-3 rounded-full bg-green-400" />
               <div className="flex-1 mx-4 h-7 bg-muted rounded-lg flex items-center px-3">
-                <span className="text-xs text-muted-foreground">airtools.app/tools/compress-pdf</span>
+                <span className="text-xs text-muted-foreground">airtools.vercel.app/tools/compress-pdf</span>
               </div>
             </div>
 
             {/* Tool Grid Preview */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
-                { name: "Compress PDF", color: "bg-red-500", emoji: "📄" },
-                { name: "Merge PDF", color: "bg-orange-500", emoji: "🔗" },
-                { name: "Compress Image", color: "bg-green-500", emoji: "🖼️" },
-                { name: "Resize Image", color: "bg-blue-500", emoji: "📐" },
-                { name: "PDF to Word", color: "bg-indigo-500", emoji: "📝" },
-                { name: "ZIP Maker", color: "bg-purple-500", emoji: "📦" },
-                { name: "Password Gen", color: "bg-pink-500", emoji: "🔑" },
-                { name: "Barcode Gen", color: "bg-cyan-500", emoji: "📊" },
+                { name: "Compress PDF", slug: "compress-pdf", color: "bg-red-500", emoji: "📄" },
+                { name: "Merge PDF", slug: "merge-pdf", color: "bg-orange-500", emoji: "🔗" },
+                { name: "Compress Image", slug: "compress-image", color: "bg-green-500", emoji: "🖼️" },
+                { name: "Resize Image", slug: "resize-image", color: "bg-blue-500", emoji: "📐" },
+                { name: "PDF to Word", slug: "pdf-to-word", color: "bg-indigo-500", emoji: "📝" },
+                { name: "ZIP Maker", slug: "zip-maker", color: "bg-purple-500", emoji: "📦" },
+                { name: "Password Gen", slug: "password-generator", color: "bg-pink-500", emoji: "🔑" },
+                { name: "Barcode Gen", slug: "barcode-generator", color: "bg-cyan-500", emoji: "📊" },
               ].map((tool) => (
-                <div
+                <Link
                   key={tool.name}
-                  className="flex flex-col items-center gap-2 p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors cursor-pointer group"
+                  href={"/tools/" + tool.slug}
+                  className="flex flex-col items-center gap-2 p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors group focus-visible:outline-2 focus-visible:outline-primary"
                 >
                   <div className={`w-10 h-10 ${tool.color} rounded-xl flex items-center justify-center text-xl group-hover:scale-110 transition-transform`}>
                     {tool.emoji}
                   </div>
                   <span className="text-xs font-medium text-center leading-tight">{tool.name}</span>
-                </div>
+                </Link>
               ))}
             </div>
           </div>
@@ -156,8 +157,8 @@ export function Hero() {
             className="absolute -left-8 top-1/2 -translate-y-1/2 hidden lg:block"
           >
             <div className="glass-card rounded-xl p-4 shadow-xl">
-              <p className="text-2xl font-bold text-primary">60+</p>
-              <p className="text-xs text-muted-foreground">Free Tools</p>
+              <p className="text-lg font-bold text-primary">PDF & Image</p>
+              <p className="text-xs text-muted-foreground">Explore tools</p>
             </div>
           </motion.div>
 
@@ -168,8 +169,8 @@ export function Hero() {
             className="absolute -right-8 top-1/3 hidden lg:block"
           >
             <div className="glass-card rounded-xl p-4 shadow-xl">
-              <p className="text-2xl font-bold text-secondary">100%</p>
-              <p className="text-xs text-muted-foreground">Browser-based</p>
+              <p className="text-lg font-bold text-secondary">No install</p>
+              <p className="text-xs text-muted-foreground">Browser access</p>
             </div>
           </motion.div>
         </motion.div>

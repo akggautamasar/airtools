@@ -146,7 +146,7 @@ export default function CropPDF({ tool }: { tool: Tool }) {
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={previewUrl} alt="Page 1 preview" className="w-full h-auto block pointer-events-none" draggable={false} />
-              {crop && containerRef.current && (
+              {crop && (
                 <div
                   className="absolute border-2 border-primary bg-primary/15 pointer-events-none"
                   style={{

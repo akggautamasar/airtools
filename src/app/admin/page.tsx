@@ -52,7 +52,7 @@ export default function AdminDashboard() {
       <div className="lg:ml-64 p-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold">Dashboard</h1>
-          <p className="text-muted-foreground">Welcome back! Here's what's happening with AirTools.</p>
+          <p className="text-muted-foreground">Welcome back! Here&apos;s what&apos;s happening with AirTools.</p>
         </div>
 
         {/* Stats Grid */}

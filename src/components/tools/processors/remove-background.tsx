@@ -138,7 +138,8 @@ export default function RemoveBackground({ tool }: { tool: Tool }) {
   }, [cutoutBlob, cutoutUrl, bgMode, bgColor, bgImageUrl]);
 
   useEffect(() => {
-    updatePreview();
+    // Run after the effect phase rather than setting state synchronously inside it.
+    void Promise.resolve().then(() => updatePreview());
   }, [updatePreview]);
 
   const handleDownload = async () => {

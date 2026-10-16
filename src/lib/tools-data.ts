@@ -2,7 +2,7 @@ import { Tool } from "@/types";
 
 export const ALL_TOOLS: Tool[] = [
   // PDF Tools
-  { slug: "compress-pdf", name: "Compress PDF", description: "Reduce PDF file size while maintaining quality. Perfect for email attachments and web uploads.", category: "pdf", icon: "FileDown", color: "text-red-500", tags: ["compress", "reduce", "optimize"], popular: true },
+  { slug: "compress-pdf", name: "Compress PDF", description: "Optimize PDF structure when this reduces file size; embedded images are not recompressed.", category: "pdf", icon: "FileDown", color: "text-red-500", tags: ["compress", "reduce", "optimize"], popular: true },
   { slug: "merge-pdf", name: "Merge PDF", description: "Combine multiple PDF files into one document. Easily merge and organize your PDFs.", category: "pdf", icon: "FilePlus2", color: "text-red-500", tags: ["merge", "combine", "join"], popular: true },
   { slug: "merge-pdf-image", name: "Merge PDF & Image", description: "Combine PDF files and images into a single PDF document.", category: "pdf", icon: "FileImage", color: "text-red-500", tags: ["merge", "image", "combine"] },
   { slug: "split-pdf", name: "Split PDF", description: "Split a PDF into multiple files. Extract pages or create separate documents.", category: "pdf", icon: "FileMinus2", color: "text-red-500", tags: ["split", "extract", "separate"], popular: true },
@@ -18,11 +18,11 @@ export const ALL_TOOLS: Tool[] = [
   { slug: "pdf-to-image", name: "PDF to Image", description: "Convert PDF pages to high-quality images in JPG, PNG or WEBP format.", category: "pdf", icon: "FileImage", color: "text-red-500", tags: ["image", "convert", "export"], popular: true },
   { slug: "jpg-to-pdf", name: "JPG to PDF", description: "Convert JPG images to PDF format. Maintain quality and aspect ratio.", category: "pdf", icon: "ImageIcon", color: "text-red-500", tags: ["jpg", "convert", "create"] },
   { slug: "pdf-to-jpg", name: "PDF to JPG", description: "Convert PDF pages to JPG images with customizable quality settings.", category: "pdf", icon: "Download", color: "text-red-500", tags: ["jpg", "export", "convert"] },
-  { slug: "word-to-pdf", name: "Word to PDF", description: "Convert Word documents (DOC, DOCX) to PDF format preserving formatting.", category: "pdf", icon: "FileText", color: "text-red-500", tags: ["word", "docx", "convert"], popular: true },
-  { slug: "pdf-to-word", name: "PDF to Word", description: "Convert PDF files to editable Word documents (DOCX) with high accuracy.", category: "pdf", icon: "FileText", color: "text-red-500", tags: ["word", "docx", "convert"], popular: true },
+  { slug: "word-to-pdf", name: "Word to PDF", description: "Convert basic text and structure from DOCX to PDF; complex layout and legacy DOC are unsupported.", category: "pdf", icon: "FileText", color: "text-red-500", tags: ["word", "docx", "convert"], popular: true },
+  { slug: "pdf-to-word", name: "PDF to Word", description: "Extract selectable text into an editable DOCX; original layout and graphics are not preserved.", category: "pdf", icon: "FileText", color: "text-red-500", tags: ["word", "docx", "convert"], popular: true },
   { slug: "ppt-to-pdf", name: "PPT to PDF", description: "Convert PowerPoint presentations to PDF format maintaining all slides.", category: "pdf", icon: "Presentation", color: "text-red-500", tags: ["powerpoint", "pptx", "convert"] },
-  { slug: "pdf-to-ppt", name: "PDF to PPT", description: "Convert PDF files to PowerPoint presentations for easy editing.", category: "pdf", icon: "Presentation", color: "text-red-500", tags: ["powerpoint", "pptx", "convert"] },
-  { slug: "excel-to-pdf", name: "Excel to PDF", description: "Convert Excel spreadsheets to PDF format with all formatting intact.", category: "pdf", icon: "Table", color: "text-red-500", tags: ["excel", "xlsx", "convert"] },
+  { slug: "pdf-to-ppt", name: "PDF to PPT", description: "Generate PowerPoint slides from PDF pages with limited editability.", category: "pdf", icon: "Presentation", color: "text-red-500", tags: ["powerpoint", "pptx", "convert"] },
+  { slug: "excel-to-pdf", name: "Excel to PDF", description: "Render spreadsheet content into PDF with limited formatting support.", category: "pdf", icon: "Table", color: "text-red-500", tags: ["excel", "xlsx", "convert"] },
   { slug: "pdf-to-excel", name: "PDF to Excel", description: "Convert PDF tables and data to editable Excel spreadsheets.", category: "pdf", icon: "Table", color: "text-red-500", tags: ["excel", "xlsx", "convert"] },
   { slug: "txt-to-pdf", name: "TXT to PDF", description: "Convert plain text files to professionally formatted PDF documents.", category: "pdf", icon: "FileText", color: "text-red-500", tags: ["text", "txt", "convert"] },
   { slug: "pdf-to-txt", name: "PDF to Text", description: "Extract text content from PDF files and save as plain text files.", category: "pdf", icon: "AlignLeft", color: "text-red-500", tags: ["text", "extract", "convert"] },
@@ -40,7 +40,7 @@ export const ALL_TOOLS: Tool[] = [
   { slug: "epub-to-pdf", name: "EPUB to PDF", description: "Convert EPUB eBooks to PDF format while preserving formatting.", category: "ebook", icon: "BookOpen", color: "text-purple-500", tags: ["epub", "convert", "pdf"] },
   { slug: "mobi-to-pdf", name: "MOBI to PDF", description: "Convert MOBI Kindle files to PDF format for any device.", category: "ebook", icon: "BookOpen", color: "text-purple-500", tags: ["mobi", "kindle", "convert"] },
   { slug: "azw-to-pdf", name: "AZW to PDF", description: "Convert Amazon Kindle AZW files to PDF documents.", category: "ebook", icon: "BookOpen", color: "text-purple-500", tags: ["azw", "kindle", "convert"] },
-  { slug: "pdf-to-epub", name: "PDF to EPUB", description: "Convert PDF files to EPUB format for eReaders and mobile devices.", category: "ebook", icon: "BookOpen", color: "text-purple-500", tags: ["epub", "ebook", "convert"] },
+  { slug: "pdf-to-epub", name: "PDF to EPUB", description: "Extract selectable PDF text to a reflowable EPUB; complex layout may be lost.", category: "ebook", icon: "BookOpen", color: "text-purple-500", tags: ["epub", "ebook", "convert"] },
   { slug: "pdf-to-mobi", name: "PDF to MOBI", description: "Convert PDF files to MOBI format compatible with Kindle devices.", category: "ebook", icon: "BookOpen", color: "text-purple-500", tags: ["mobi", "kindle", "convert"] },
   { slug: "pdf-to-azw3", name: "PDF to AZW3", description: "Convert PDF files to AZW3 format for modern Kindle devices.", category: "ebook", icon: "BookOpen", color: "text-purple-500", tags: ["azw3", "kindle", "convert"] },
 

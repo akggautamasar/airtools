@@ -1,14 +1,14 @@
 import { Metadata } from "next";
 import { Tool } from "@/types";
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://airtools.app";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://airtools.vercel.app";
 const SITE_NAME = "AirTools";
 const SITE_DESCRIPTION =
-  "All Your PDF, Image & Utility Tools in One Place. Compress, Convert, Edit and Optimize PDFs, Images and Files in Seconds.";
+  "Discover PDF, image and productivity tools. Process locally where supported, with clear tool-specific limitations."; 
 
 export function generateToolMetadata(tool: Tool): Metadata {
   const title = `${tool.name} - Free Online ${tool.name} Tool | AirTools`;
-  const description = `${tool.description} Free, fast, and secure. No installation required.`;
+  const description = `${tool.description} Check supported formats and tool-specific limitations. No installation required.`;
 
   return {
     title,

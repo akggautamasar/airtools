@@ -1,7 +1,7 @@
 import { MetadataRoute } from "next";
 import { ALL_TOOLS } from "@/lib/tools-data";
 
-const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://airtools.app";
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://airtools.vercel.app";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const toolPages = ALL_TOOLS.map((tool) => ({

@@ -7,8 +7,6 @@ import { Tool } from "@/types";
 import { downloadBlob, formatFileSize } from "@/lib/utils";
 import { csvToJson, jsonToCsv, DATA_LIMITS } from "@/lib/data-conversion";
 
-const ACCEPT = ".csv,.json,text/csv,application/json";
-
 export default function DataConverter({ tool }: { tool: Tool }) {
   const toJson = tool.slug === "csv-to-json";
   const [input, setInput] = useState("");

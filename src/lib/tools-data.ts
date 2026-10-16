@@ -92,6 +92,8 @@ export const ALL_TOOLS: Tool[] = [
   { slug: "url-encoder", name: "URL Encoder & Decoder", description: "Encode or decode URL query-component text with correct percent encoding.", category: "utility", icon: "Link2", color: "text-blue-500", tags: ["url", "encode", "decode", "percent", "component"], new: true },
   { slug: "timestamp-converter", name: "Unix Timestamp Converter", description: "Convert UTC ISO 8601 dates, Unix seconds and Unix milliseconds.", category: "utility", icon: "Clock3", color: "text-blue-500", tags: ["unix", "timestamp", "date", "epoch", "time"], new: true },
   { slug: "text-diff", name: "Text Difference Checker", description: "Compare up to 300 lines per side and see exact added or removed lines.", category: "utility", icon: "GitCompareArrows", color: "text-blue-500", tags: ["diff", "text", "compare", "changes", "lines"], new: true },
+  // Focused, local application document cross-checker
+  { slug: "document-consistency-radar", name: "Document Consistency Radar", description: "Spot spelling, initials, name order, date of birth and parent-name discrepancies across certificates and application records before submission. All comparisons are reviewed locally.", category: "utility", icon: "FileSearch", color: "text-blue-500", tags: ["name mismatch", "document verification", "application", "identity consistency", "certificate", "date of birth", "offline", "privacy"], popular: true, new: true },
 ];
 
 export const TOOL_CATEGORIES = [

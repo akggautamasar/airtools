@@ -107,3 +107,11 @@ These were added on the follow-up branch after the 74-route source audit. They a
 - The externally hosted upscaler remains unverified. Its Worker accepts remote URLs and forwards input to a third-party provider; review SSRF, abuse controls, content validation and provider terms before production rollout.
 - ZIP extraction has new preflight safeguards, but browser memory/CPU consumption still needs integration benchmarking.
 - Do not count registry entries as independently verified working tools. Distinct routes often share the same processor.
+
+## New differentiated workflow — Document Consistency Radar (2026-10-16)
+
+- Route: `/tools/document-consistency-radar` · category: utility · processor: `consistency-radar.tsx`
+- Status: **PARTIAL (implemented, automated tests required)**; browser OCR/PDF verification still requires smoke testing.
+- Compares user-confirmed full name, date of birth, and parent names across up to eight records. Files: PDF, DOCX, TXT, JPG, PNG, WebP; 12 MiB/file, first 25 PDF pages checked for text suggestions.
+- No extraction is treated as authoritative; signed/personal records and scanned images may not expose reliable text. Optional OCR may download model assets but does not upload the document.
+- Exports optional-value JSON/TXT mismatch reports, with sensitive values omitted by default. Not an official verification or guarantee of portal acceptance.

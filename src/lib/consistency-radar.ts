@@ -26,7 +26,7 @@ export function emptyFields(): RecordFields {
   return { fullName: "", dateOfBirth: "", fatherName: "", motherName: "" };
 }
 export function normalizePersonName(value: string): string {
-  return value.normalize("NFKC").toLocaleUpperCase("en").replace(/[^\p{L}\p{N}]+/gu, " ").trim().replace(/\s+/g, " ");
+  return value.normalize("NFKC").toLocaleUpperCase("en").replace(/[^\p{L}\p{N}\p{M}]+/gu, " ").trim().replace(/\s+/g, " ");
 }
 function editDistanceAtMostTwo(a: string, b: string): number {
   if (Math.abs(a.length - b.length) > 2) return 3;

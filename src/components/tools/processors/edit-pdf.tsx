@@ -115,7 +115,7 @@ function useHtmlImage(src?: string): HTMLImageElement | null {
       image.onload = null;
     };
   }, [src]);
-  return loaded?.src === src ? loaded.image : null;
+  return loaded && loaded.src === src ? loaded.image : null;
 }
 
 function URLImage(props: Omit<Konva.ImageConfig, "image"> & { src: string }) {

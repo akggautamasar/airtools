@@ -284,6 +284,7 @@ export default function EditPDF({ tool }: { tool: Tool }) {
   const handleFilesChange = async (f: UploadedFile[]) => {
     setFiles(f);
     setPages([]);
+    imageDataCache.current = {};
     setElementsByPage({});
     setPageOrder([]);
     setUndoStack([]);
@@ -876,6 +877,8 @@ export default function EditPDF({ tool }: { tool: Tool }) {
                       rotation: el.rotation || 0,
                       draggable: activeTool === "select",
                       onClick: () => setSelectedId(el.id),
+                      onDragStart: () => saveUndo(),
+                      onTransformStart: () => saveUndo(),
                       onTap: () => setSelectedId(el.id),
                       onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => updateElement(el.id, { x: e.target.x(), y: e.target.y() }),
                       onTransformEnd: (e: Konva.KonvaEventObject<Event>) => handleTransformEnd(el, e.target),
@@ -907,10 +910,10 @@ export default function EditPDF({ tool }: { tool: Tool }) {
                   defaultValue={editingText.text}
                   className="absolute bg-white border border-primary rounded px-1 outline-none resize-none"
                   style={{
-                    left: editingText.x,
-                    top: editingText.y,
-                    width: editingText.width || 200,
-                    fontSize: editingText.fontSize,
+                    left: editingText.x * zoom,
+                    top: editingText.y * zoom,
+                    width: (editingText.width || 200) * zoom,
+                    fontSize: (editingText.fontSize || 16) * zoom,
                     color: editingText.color,
                     lineHeight: 1.2,
                   }}

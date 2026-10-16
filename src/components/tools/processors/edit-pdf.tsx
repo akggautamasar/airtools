@@ -688,8 +688,10 @@ export default function EditPDF({ tool }: { tool: Tool }) {
   return (
     <div className="space-y-6">
       {pages.length === 0 && (
-        <UploadZone accept={ACCEPTED_PDF_TYPES} multiple={false} onFilesChange={handleFilesChange} title="Upload PDF to edit" description="Edit existing text, or add text, images, shapes, highlights, whiteout and drawings" />
+        <UploadZone accept={ACCEPTED_PDF_TYPES} multiple={false} maxSize={PDF_STUDIO_LIMITS.fileBytes} onFilesChange={handleFilesChange}
+          title="Choose a PDF for Studio" description="Up to 20 MiB, 30 pages; add, move, visually revise text, annotate or flatten." />
       )}
+      {error && <div role="alert" className="rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">{error}</div>
 
       {loading && (
         <div className="flex items-center justify-center py-16">
@@ -699,11 +701,61 @@ export default function EditPDF({ tool }: { tool: Tool }) {
 
       {pages.length > 0 && page && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
-          {activeTool === "edittext" && (
-            <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-xl p-3 text-xs text-blue-700 dark:text-blue-400">
-              ℹ️ Click on any line of text to replace it. We cover the original with a matching background patch and drop in an editable text box you can retype, move or resize.
+          <div className="rounded-2xl border border-border bg-card p-4 space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="font-semibold">PDF Studio · {pageOrder.length} pages</p>
+              <Button variant="outline" size="sm" onClick={() => { setPages([]); setFiles([]); setPageOrder([]); setElementsByPage({}); setUndoStack([]); setRedoStack([]); setError(""); }}>
+                Open another PDF
+              </Button>
             </div>
-          )}
+            <p className="text-sm text-muted-foreground">Your PDF is edited locally. Select markup to move it, or double-click added text to edit. Undo applies to markups; page order has its own reset.</p>
+            {activeTool === "edittext" && <p className="text-sm text-amber-700 dark:text-amber-300">
+              Visual correction: clicking source text creates a background cover and replacement text. Normal PDF export retains original underlying text. Choose Flattened export if the original must not be selectable.
+            </p>}
+          </div>
+          <div className="rounded-xl border border-border bg-card p-3 space-y-2">
+            <label htmlFor="pdf-studio-search" className="flex items-center gap-2 font-medium text-sm"><Search className="w-4 h-4" />Find selectable PDF text</label>
+            <input id="pdf-studio-search" type="search" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search source text, jump to a page" className="w-full rounded-lg border border-border bg-background p-2 text-sm" maxLength={120}/>
+            {searchQuery.trim().length > 1 && (
+              <div className="flex flex-wrap gap-2 text-xs">
+                {matches.length ? matches.map((match, i) => (
+                  <button type="button" key={i} onClick={() => { setPageIndex(match.page); setSelectedId(null); }}
+                    className="rounded-md border border-border px-2 py-1 hover:border-primary max-w-full truncate" title={match.text}>
+                    Page {match.page + 1}: {match.text.slice(0, 36)}
+                  </button>
+                )) : <p className="text-muted-foreground">No selectable text found. Scanned pages may not contain searchable text.</p>}
+              </div>
+            )}
+          </div>
+          <div className="space-y-2">
+            <p className="text-sm font-semibold">Page thumbnails · select, move or remove</p>
+            <div className="flex gap-2 overflow-x-auto rounded-xl border border-border bg-muted/30 p-3">
+              {pageOrder.map((origin, index) => (
+                <button key={origin} type="button" aria-label={"Go to page " + (index + 1)}
+                  aria-current={index === pageIndex ? "page" : undefined}
+                  className={"shrink-0 rounded-lg border-2 bg-card p-2 text-xs text-center " + (index === pageIndex ? "border-primary" : "border-transparent hover:border-border")}
+                  onClick={() => { setPageIndex(index); setSelectedId(null); }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={pages[origin].dataUrl} alt={"Page " + (index + 1) + " thumbnail"} className="h-20 w-auto max-w-16 mx-auto object-contain" />
+                  <span className="block mt-1">Page {index + 1}</span>
+                  {(elementsByPage[origin] || []).length > 0 && <span className="block text-primary">{elementsByPage[origin].length} edits</span>}
+                </button>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-2 items-center">
+              <Button size="sm" variant="outline" disabled={pageIndex === 0}
+                onClick={() => { setPageOrder((order) => shiftPage(order, pageIndex, -1)); setPageIndex((v) => v - 1); }}>
+                <MoveLeft className="w-4 h-4 mr-1" />Move earlier</Button>
+              <Button size="sm" variant="outline" disabled={pageIndex === pageOrder.length - 1}
+                onClick={() => { setPageOrder((order) => shiftPage(order, pageIndex, 1)); setPageIndex((v) => v + 1); }}>
+                <MoveRight className="w-4 h-4 mr-1" />Move later</Button>
+              <Button size="sm" variant="outline" disabled={pageOrder.length <= 1}
+                onClick={() => { setPageOrder((order) => dropPage(order, pageIndex)); setPageIndex((v) => Math.max(0, Math.min(v, pageOrder.length - 2))); setSelectedId(null); }}>
+                <Trash2 className="w-4 h-4 mr-1" />Remove page</Button>
+              <Button size="sm" variant="ghost" onClick={() => { setPageOrder(pages.map((_, i) => i)); setPageIndex(0); setSelectedId(null); }}>Restore original page order</Button>
+            </div>
+          </div>
           {/* Toolbar */}
           <div className="bg-card border border-border rounded-2xl p-3 flex flex-wrap items-center gap-2">
             {TOOLS.map(({ id, label, icon: Icon }) => (
@@ -727,10 +779,11 @@ export default function EditPDF({ tool }: { tool: Tool }) {
                 </button>
               )
             ))}
-            <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+            <input ref={imageInputRef} type="file" accept="image/png,image/jpeg" className="hidden" onChange={handleImageUpload} />
 
+            <Button variant="outline" size="sm" title="Undo markup (Ctrl+Z)" disabled={!undoStack.length} onClick={undo}><Undo2 className="h-4 w-4 mr-1" />Undo</Button>
+            <Button variant="outline" size="sm" title="Redo markup (Ctrl+Shift+Z)" disabled={!redoStack.length} onClick={redo}><Redo2 className="h-4 w-4 mr-1" />Redo</Button>
             <div className="h-6 w-px bg-border mx-1" />
-
             <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="w-9 h-9 rounded-lg border border-border cursor-pointer bg-transparent" title="Color" />
 
             {(activeTool === "draw" || activeTool === "line") && (
@@ -757,6 +810,12 @@ export default function EditPDF({ tool }: { tool: Tool }) {
               <Trash2 className="w-4 h-4" />
             </button>
 
+            <div className="flex items-center gap-2">
+              <button aria-label="Zoom out" onClick={() => setZoom((z) => Math.max(0.3, +(z - 0.1).toFixed(2)))} className="p-2 rounded-lg border border-border"><ZoomOut className="w-4 h-4" /></button>
+              <span className="text-xs tabular-nums min-w-10 text-center">{Math.round(zoom * 100)}%</span>
+              <button aria-label="Zoom in" onClick={() => setZoom((z) => Math.min(1.5, +(z + 0.1).toFixed(2)))} className="p-2 rounded-lg border border-border"><ZoomIn className="w-4 h-4" /></button>
+              <button onClick={() => setZoom(Math.max(0.3, Math.min(1, (window.innerWidth - 90) / page.width)))} className="px-2 py-2 text-xs rounded-lg border border-border">Fit width</button>
+            </div>
             <div className="ml-auto flex items-center gap-2">
               <button onClick={() => { setPageIndex((p) => Math.max(0, p - 1)); setSelectedId(null); }} disabled={pageIndex === 0} className="p-2 rounded-lg border border-border disabled:opacity-40">
                 <ChevronLeft className="w-4 h-4" />
@@ -768,13 +827,34 @@ export default function EditPDF({ tool }: { tool: Tool }) {
             </div>
           </div>
 
+          {selectedElement && (
+            <div className="rounded-xl border border-border bg-card p-3 flex flex-wrap items-center gap-3 text-sm">
+              <span className="font-medium">Selected: {selectedElement.type}</span>
+              <label className="flex items-center gap-1">Color
+                <input aria-label="Selected element color" type="color" value={selectedElement.color}
+                  onChange={(e) => { saveUndo(); updateElement(selectedElement.id, { color: e.target.value }); }} />
+              </label>
+              {selectedElement.type === "text" && (
+                <>
+                  <label className="flex items-center gap-2">Text size
+                    <input type="number" min={8} max={120} className="w-16 rounded border border-border bg-background px-2 py-1"
+                      value={Math.round(selectedElement.fontSize || 16)}
+                      onChange={(e) => { saveUndo(); updateElement(selectedElement.id, { fontSize: Math.max(8, Math.min(120, Number(e.target.value) || 8)) }); }}/>
+                  </label>
+                  <Button size="sm" variant="outline" onClick={() => startTextEdit(selectedElement)}>Edit text</Button>
+                </>
+              )}
+            </div>
+          )}
           {/* Canvas */}
           <div className="bg-muted/40 border border-border rounded-2xl p-4 overflow-auto flex justify-center">
-            <div className="relative" style={{ width: page.width, height: page.height }}>
+            <div className="relative" style={{ width: page.width * zoom, height: page.height * zoom }}>
               <Stage
                 ref={stageRef}
-                width={page.width}
-                height={page.height}
+                width={page.width * zoom}
+                height={page.height * zoom}
+                scaleX={zoom}
+                scaleY={zoom}
                 onMouseDown={handleStageMouseDown}
                 onMouseMove={handleStageMouseMove}
                 onMouseUp={handleStageMouseUp}
@@ -846,8 +926,20 @@ export default function EditPDF({ tool }: { tool: Tool }) {
             </div>
           </div>
 
+          <section className="space-y-3 rounded-2xl border border-border bg-card p-4">
+            <div className="flex items-center gap-2"><Layers2 className="w-5 h-5 text-primary" /><h3 className="font-semibold">Export options</h3></div>
+            <label className="flex gap-3 items-start text-sm">
+              <input type="radio" name="pdf-export" value="layered" checked={exportMode === "layered"} onChange={() => setExportMode("layered")} className="mt-1" />
+              <span><strong>Layered PDF (text and links preserved where supported)</strong><span className="block text-xs text-muted-foreground">Keeps original PDF content and adds markup on top. Covered text remains searchable; not secure redaction. Reordering may affect forms. Helvetica text additions have limited language support.</span></span>
+            </label>
+            <label className="flex gap-3 items-start text-sm">
+              <input type="radio" name="pdf-export" value="flattened" checked={exportMode === "flattened"} onChange={() => setExportMode("flattened")} className="mt-1" />
+              <span><strong>Flattened image-only PDF</strong><span className="block text-xs text-muted-foreground">Builds a new document from visible pages and annotations; original selectable text, links and forms are NOT copied. Visual coverage is baked into pixels. Inspect results carefully; size and quality may change.</span></span>
+            </label>
+            {containsVisualCorrections && exportMode === "layered" && <p role="alert" className="rounded-lg border border-amber-400 p-2 text-sm text-amber-700 dark:text-amber-300">This file contains cover/whiteout overlays. Source text can still be recovered from Layered export. Choose Flattened for an image-only copy, or a verified redaction workflow for sensitive documents.</p>}
+          </section>
           <Button onClick={handleExport} disabled={exporting} size="lg" className="w-full" variant="gradient">
-            {exporting ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Exporting...</> : <><Download className="w-4 h-4 mr-2" />Download Edited PDF</>}
+            {exporting ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Exporting...</> : <><Download className="w-4 h-4 mr-2" />Download {exportMode === "flattened" ? "Flattened" : "Layered"} PDF</>}
           </Button>
         </motion.div>
       )}

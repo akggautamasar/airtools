@@ -26,7 +26,7 @@ export default function ContactPage() {
               Get in <span className="gradient-text">Touch</span>
             </h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Have a question, suggestion, or need help? We'd love to hear from you.
+              Have a question, suggestion, or need help? We&apos;d love to hear from you.
             </p>
           </div>
 
@@ -68,7 +68,7 @@ export default function ContactPage() {
                   <CheckCircle2 className="w-20 h-20 text-green-500 mb-6" />
                   <h2 className="text-3xl font-bold mb-4">Message Sent!</h2>
                   <p className="text-muted-foreground text-lg">
-                    Thank you for reaching out. We'll get back to you within 24 hours.
+                    Thank you for reaching out. We&apos;ll review your message when available.
                   </p>
                 </motion.div>
               ) : (

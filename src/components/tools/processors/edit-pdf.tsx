@@ -755,7 +755,7 @@ export default function EditPDF({ tool }: { tool: Tool }) {
         <UploadZone accept={ACCEPTED_PDF_TYPES} multiple={false} maxSize={PDF_STUDIO_LIMITS.fileBytes} onFilesChange={handleFilesChange}
           title="Choose a PDF for Studio" description="Up to 20 MiB, 30 pages; add, move, visually revise text, annotate or flatten." />
       )}
-      {error && <div role="alert" className="rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">{error}</div>
+      {error && <div role="alert" className="rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">{error}</div>}
 
       {loading && (
         <div className="flex items-center justify-center py-16">

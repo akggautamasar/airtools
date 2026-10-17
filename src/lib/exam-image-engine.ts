@@ -50,7 +50,11 @@ export function renderExamImage(image:HTMLImageElement,s:RenderSettings):HTMLCan
  return canvas;
 }
 export async function canvasAsBlob(canvas:HTMLCanvasElement,format:ExamImageFormat,quality=.9):Promise<Blob>{
- return new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(Error("Image encoding failed")),"image/"+format,quality));
+ return new Promise((resolve,reject)=>canvas.toBlob(b=>{
+  if(!b)return reject(Error("Image encoding failed"));
+  if(b.type!=="image/"+format)return reject(Error("This browser does not support the requested "+format.toUpperCase()+" format"));
+  resolve(b);
+ },"image/"+format,quality));
 }
 export async function sizeTargetExport(canvas:HTMLCanvasElement,format:ExamImageFormat,minKB:number,maxKB:number) {
  if(format==="png") {

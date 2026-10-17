@@ -1,5 +1,11 @@
 # AirTools changelog
 
+## 2026-10-17 — Photo studios
+- Upgraded legacy AI Background Remover into an on-device studio with batch cutouts, backdrops, shadows, brush edge cleanup and watermark-free PNG/ZIP exports.
+- Added discoverable Background Studio, Batch Background Remover and Product Photo Studio tool entries.
+- Added Passport & ID Photo Maker with physical-size presets, manual crop, opportunistic browser face centering, and print-ready PDF sheets (A4/4 × 6 in). No biometric certification, government acceptance guarantee, virtual suit changer or alteration of identity features.
+- Background AI engine is third-party AGPL; attribution and source links included. Government source links are displayed for UK and US preset requirements.
+
 ## 2026-10-17 — PDF→EPUB 100 MB chunk upload
 - Added up to 100,000,000-byte uploads with 5 MiB chunks and a progress indicator.
 - Authorized upload tickets are scoped to one file and time-limited; Vercel never receives PDF bytes.

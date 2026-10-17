@@ -125,6 +125,51 @@ export function normalizeScrutinyValue(field:FieldSpec,value:string):string {
 /** Conservative label-led extraction. Never guess a name from an unrelated paragraph. */
 export function suggestScrutinyValues(text:string):Values {
   const found=blankScrutinyValues();
+  // Indian bilingual portal previews commonly place Hindi labels and English
+  // values in alternating PDF table cells. Parse those cells before the
+  // conservative English label matcher; never infer fields from prose.
+  const hindiAliases: Record<string, RegExp[]> = {
+    fullName:[/^आवेदक\s*का\s*नाम$/u,/^अभ्यर्थी\s*का\s*नाम$/u],
+    fatherName:[/^पिता\s*\/\s*पति\s*का\s*नाम$/u,/^पिता\s*का\s*नाम$/u],
+    motherName:[/^माता\s*का\s*नाम$/u],
+    dob:[/^जन्म\s*तिथि(?:\s*\([^)]*\))?$/u],
+    gender:[/^लिंग$/u],
+    category:[/^श्रेणी$/u,/^आरक्षण\s*श्रेणी$/u],
+    aadhaarLast4:[/^आधार\s*कार्ड\s*क्रमांक(?:\s*\([^)]*\))?$/u],
+    mobile:[/^मोबाइल\s*नंबर$/u],
+    email:[/^ईमेल$/u],
+    pwdStatus:[/^क्या\s*आप\s*दिव्यांग\s*है\s*\??$/u],
+  };
+  const pdfLines=text.slice(0,100_000).split(/\r?\n/);
+  for(const line of pdfLines){
+    // pdf.js produces space-separated table cells, while browser print-to-PDF
+    // often preserves multiple spaces. Require distinct labelled cells.
+    const cells=line.trim().split(/\s{2,}|\t+/).map(x=>x.trim()).filter(Boolean);
+    for(let i=0;i<cells.length-1;i++){
+      for(const [key,aliases] of Object.entries(hindiAliases)){
+        if(found[key]||!aliases.some(re=>re.test(cells[i])))continue;
+        let value=cells[i+1];
+        if(key==="dob") value=parseSuggestedDate(value)||"";
+        if(key==="aadhaarLast4") value=safeValue(key,value);
+        if(key==="gender"){
+          if(/^(पुरूष|पुरुष|नर|male|m)$/iu.test(value))value="Male";
+          else if(/^(महिला|स्त्री|female|f)$/iu.test(value))value="Female";
+          else value="";
+        }
+        if(key==="category"){
+          if(/अनारक्षित|सामान्य|\bUR\b/iu.test(value))value="UR";
+          else if(/अनुसूचित\s*जाति|\bSC\b/iu.test(value))value="SC";
+          else if(/अनुसूचित\s*जनजाति|\bST\b/iu.test(value))value="ST";
+          else if(/पिछड़ा\s*वर्ग|\bOBC\b/iu.test(value))value="OBC";
+          else if(/\bEWS\b/iu.test(value))value="EWS";
+          else value="";
+        }
+        if(key==="mobile" && /[*xX]/.test(value))value="";
+        if(key==="email" && /[*xX]/.test(value))value="";
+        if(value && value.length<=105 && !/[\n\r]/.test(value))found[key]=value;
+      }
+    }
+  }
   const rows=text.slice(0,100_000).split(/\r?\n/).map(scrub).filter(Boolean);
   for(let i=0;i<rows.length;i++){
     const line=rows[i];

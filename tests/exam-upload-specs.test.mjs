@@ -18,6 +18,7 @@ test("percentage uses original pixels and bounds",()=>{
  assert.deepEqual(percentDimensions(413,531,100),{width:413,height:531});
  assert.deepEqual(percentDimensions(413,531,50),{width:207,height:266});
  assert.throws(()=>percentDimensions(413,531,0));
+ assert.deepEqual(percentDimensions(6000,4000,100),{width:4000,height:2667});
 });
 test("cover crop does not exceed source dimensions",()=>{
  for(const [w,h,tw,th,z,x,y] of [[600,800,200,230,1,.5,.5],[1200,400,140,60,2,1,0],[300,300,240,240,4,0,1]]){

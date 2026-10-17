@@ -17,3 +17,10 @@ AirTools' Exam Application Tools category is a **general image-resize workspace*
 - A target maximum cannot always be achieved by changing JPEG/WebP quality at fixed dimensions, and PNG may remain too large. The UI shows when actual output is out of range.
 - Never promise recruitment website acceptance. Users enter requirements taken from their own current portal. Do not alter protected identification details, generate handwriting/fingerprints or circumvent compulsory live-camera capture.
 - UX design is inspired by the familiar layout and workflow of ImageResizer.com/resize/editor (By Size, As Percentage, aspect ratio lock, optional KB target and format picker); this is an independently implemented AirTools component with its own layout and code.
+
+## Physical dimensions & optional filename rename (October 2026)
+- By Size supports **pixel / inch / centimeter / millimeter**, selected beside Height and applied to both width and height. Units are converted using a user-editable DPI/PPI (default 300, range 36–1200). Lock aspect ratio is still enabled by default. Physical measurements must be rounded to integer output pixels, so the displayed value may differ slightly after export.
+- Changing the unit does not resize the image on its own. Editing a physical measurement computes new pixel dimensions, displayed in the live preview. Changing DPI while using a physical unit changes output pixel dimensions to preserve the chosen physical size approximately.
+- Do not claim embedded DPI metadata or physical print certification: browser Canvas exports may not retain or write DPI metadata.
+- After export, users may optionally enter a different filename. When left blank, the output defaults to the **uploaded original basename + "-AirTools" + actual extension** (e.g. `PI7-photo.jpeg` -> `PI7-photo-AirTools.jpg`). File extensions in manual overrides are replaced with the true output type to prevent misleading naming. ZIP uses per-type folders to avoid collisions.
+- Number-entry editing permits temporary empty or partial values. Final pixels stay clamped to the editor's existing 20–4000 pixel limits.

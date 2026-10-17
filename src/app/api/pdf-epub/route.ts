@@ -15,6 +15,7 @@ export function GET() {
     max_upload_bytes: PDF_EPUB_DIRECT_MAX_BYTES,
     method: "short_lived_direct_upload_token",
     storage: "Cloudflare KV (24-hour temporary retention)",
+    upload: "direct_chunks_for_large_pdf",
   }, { headers: { "Cache-Control": "no-store" } });
 }
 

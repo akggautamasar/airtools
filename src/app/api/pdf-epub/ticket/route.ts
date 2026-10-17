@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     const preset = payload.preset;
     const languages = payload.ocr_languages;
     if (!Number.isSafeInteger(fileBytes) || (fileBytes as number) < 5 || (fileBytes as number) > PDF_EPUB_DIRECT_MAX_BYTES) {
-      return jsonError("size", "PDF must be 18 MiB or smaller.", 413);
+      return jsonError("size", "PDF must be 100 MB (100,000,000 bytes) or smaller.", 413);
     }
     if (typeof preset !== "string" || typeof languages !== "string" || !validatePdfEpubSettings(preset, languages)) {
       return jsonError("options", "Invalid preset or OCR language.", 422);
@@ -36,19 +36,29 @@ export async function POST(request: NextRequest) {
       }),
     });
     if (!upstream.ok) return jsonError("upstream", await parseBackendError(upstream), upstreamErrorStatus(upstream.status));
-    const ticket = await upstream.json() as { job_id?: string; upload_url?: string; upload_token?: string; expires_at?: string };
+    const ticket = await upstream.json() as {
+      job_id?: string; upload_url?: string; upload_token?: string; expires_at?: string;
+      upload_mode?: string; chunk_bytes?: number; chunk_count?: number; finalize_url?: string;
+    };
     if (!ticket.job_id || !PDF_EPUB_ID_REGEX.test(ticket.job_id) ||
         typeof ticket.upload_token !== "string" || !/^up_[a-f0-9]{64}$/i.test(ticket.upload_token) ||
         typeof ticket.upload_url !== "string") {
       return jsonError("response", "Conversion service returned an invalid upload authorization.", 502);
     }
     const upload = new URL(ticket.upload_url);
-    if (upload.origin !== epubApiEndpoint() || upload.pathname !== "/v1/direct-upload" || upload.search || upload.hash) {
+    if (upload.origin !== epubApiEndpoint() ||
+        !["/v1/direct-upload", "/v1/chunks"].includes(upload.pathname) || upload.search || upload.hash ||
+        (ticket.upload_mode === "chunked" && (upload.pathname !== "/v1/chunks" || ticket.chunk_bytes !== 5 * 1024 * 1024 ||
+          ticket.chunk_count !== Math.ceil((fileBytes as number) / ticket.chunk_bytes) ||
+          ticket.finalize_url !== epubApiEndpoint() + "/v1/chunks/finalize")) ||
+        (ticket.upload_mode !== "chunked" && upload.pathname !== "/v1/direct-upload")) {
       return jsonError("url", "Conversion service returned an unexpected upload destination.", 502);
     }
     const response = NextResponse.json({
       job_id: ticket.job_id, upload_url: ticket.upload_url,
       upload_token: ticket.upload_token, expires_at: ticket.expires_at,
+      upload_mode: ticket.upload_mode || "single",
+      chunk_bytes: ticket.chunk_bytes, chunk_count: ticket.chunk_count, finalize_url: ticket.finalize_url,
       max_upload_bytes: PDF_EPUB_DIRECT_MAX_BYTES,
     }, { status: 201 });
     response.headers.set("Referrer-Policy", "no-referrer");

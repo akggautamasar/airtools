@@ -46,3 +46,8 @@
 4. Status, cancel, download and report remain behind Vercel's existing job-cookie/API-key bridge.
 
 **Limits:** 18 MiB (18,874,368 bytes), 12 shared jobs/day. Without the Worker migration/deployment, upload ticket requests fail and advanced conversion will be unavailable. The legacy /api/pdf-epub POST route remains capped at 4 MB for compatibility.
+
+## 100 MB chunked upload upgrade
+The 18 MiB single-file Cloudflare upload remains available for small PDFs. Larger uploads, up to 100,000,000 bytes, request a two-hour single-upload authorization and upload 5 MiB segments directly to the existing Cloudflare Worker, using KV for temporary parts, D1 for per-chunk state and digest, and Queues for conversion dispatch. The browser can retry failed chunks without starting the whole upload again. The worker verifies each chunk's SHA-256 and the Render service reconstructs them incrementally into a temporary PDF. Backend migrations and Worker/Render deployments must be completed first.
+
+**No new paid service and no card.** Storage and compute are still constrained by the free plan; OCR-heavy large books may fail despite an accepted upload. Daily shared conversion quotas remain unchanged.

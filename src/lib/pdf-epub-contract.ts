@@ -1,6 +1,6 @@
 /** Shared public contract; contains no API keys or server implementation. */
 export const PDF_EPUB_PROXY_MAX_BYTES = 4_000_000; // Legacy small-payload proxy.
-export const PDF_EPUB_DIRECT_MAX_BYTES = 18 * 1024 * 1024; // Direct browser -> Cloudflare KV (18 MiB). // Leave room below Vercel's 4.5 MB request limit.
+export const PDF_EPUB_DIRECT_MAX_BYTES = 100_000_000; // Direct browser -> Cloudflare KV (18 MiB). // Leave room below Vercel's 4.5 MB request limit.
 export const PDF_EPUB_PRESETS = ["balanced", "maximum_compression", "high_fidelity"] as const;
 export type PdfEpubPreset = typeof PDF_EPUB_PRESETS[number];
 export const PDF_EPUB_LANGUAGES = ["eng+hin", "eng", "hin"] as const;
@@ -37,4 +37,17 @@ export function normalizeJobProgress(value: unknown): number {
 }
 export function isPdfHeader(bytes: Uint8Array): boolean {
   return bytes.length >= 5 && bytes[0] === 37 && bytes[1] === 80 && bytes[2] === 68 && bytes[3] === 70 && bytes[4] === 45;
+}
+
+// Upload stays in-browser: Cloudflare Worker accepts 5 MiB segments into KV.
+export const PDF_EPUB_CHUNK_BYTES = 5 * 1024 * 1024;
+export interface PdfEpubUploadTicket {
+  job_id: string;
+  upload_url: string;
+  upload_token: string;
+  upload_mode?: "single" | "chunked";
+  chunk_bytes?: number;
+  chunk_count?: number;
+  finalize_url?: string;
+  expires_at?: string;
 }

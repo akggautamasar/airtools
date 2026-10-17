@@ -7,7 +7,7 @@ import { UploadZone } from "@/components/tools/upload-zone";
 import { UploadedFile, Tool } from "@/types";
 import { downloadBlob, formatFileSize, ACCEPTED_PDF_TYPES } from "@/lib/utils";
 import { extractPdfText } from "@/lib/pdf-client";
-import { PDF_EPUB_DIRECT_MAX_BYTES, PDF_EPUB_PRESETS, PDF_EPUB_LANGUAGES, normalizeJobProgress, type PdfEpubJob, type PdfEpubReport, type PdfEpubPreset, type PdfEpubLanguage } from "@/lib/pdf-epub-contract";
+import { PDF_EPUB_DIRECT_MAX_BYTES, PDF_EPUB_PRESETS, PDF_EPUB_LANGUAGES, normalizeJobProgress, type PdfEpubJob, type PdfEpubReport, type PdfEpubPreset, type PdfEpubLanguage, type PdfEpubUploadTicket } from "@/lib/pdf-epub-contract";
 
 const escapeXml = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -98,6 +98,9 @@ export default function PDFToEpub({ tool }: { tool: Tool }) {
   const [bookAuthor, setBookAuthor] = useState("");
   const [processing, setProcessing] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [uploadStage, setUploadStage] = useState("");
+  const uploadTicketRef = useRef<PdfEpubUploadTicket | null>(null);
   const [error, setError] = useState("");
   const [result, setResult] = useState<{ blob: Blob; name: string } | null>(null);
   const [job, setJob] = useState<PdfEpubJob | null>(null);
@@ -129,6 +132,8 @@ export default function PDFToEpub({ tool }: { tool: Tool }) {
     setError("");
     setResult(null);
     setElapsedPolling(false);
+    setUploadProgress(null);
+    setUploadStage("");
   };
 
   const readError = async (response: Response): Promise<string> => {
@@ -180,7 +185,7 @@ export default function PDFToEpub({ tool }: { tool: Tool }) {
     if (!files.length || processing) return;
     const file = files[0].file;
     if (file.size > PDF_EPUB_DIRECT_MAX_BYTES) {
-      setError("Advanced conversion supports PDFs up to 18 MiB. Choose a smaller PDF for this free-tier service.");
+      setError("Advanced conversion accepts PDFs up to 100 MB. Large scans may exceed the free converter's RAM or processing time.");
       return;
     }
     if (!file.size) { setError("Choose a nonempty PDF."); return; }
@@ -188,34 +193,99 @@ export default function PDFToEpub({ tool }: { tool: Tool }) {
     reset();
     currentJobId.current = null;
     try {
-      const issued = await fetch("/api/pdf-epub/ticket", {
-        method: "POST",
-        credentials: "same-origin",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          file_bytes: file.size, preset, ocr_languages: languages,
-          title: bookTitle.trim().slice(0, 160) || file.name.replace(/\.pdf$/i, ""),
-          author: bookAuthor.trim().slice(0, 160),
-        }),
-      });
-      if (!issued.ok) throw new Error(await readError(issued));
-      const ticket = await issued.json() as { job_id: string; upload_url: string; upload_token: string };
+      let ticket = uploadTicketRef.current;
+      // If a chunk failed, retry using the same authorization and the already
+      // uploaded chunks rather than uploading all 100 MB again.
+      if (!ticket || (ticket.expires_at && new Date(ticket.expires_at).getTime() < Date.now() + 30_000)) {
+        uploadTicketRef.current = null;
+        setUploadStage("Authorizing private upload");
+        const issued = await fetch("/api/pdf-epub/ticket", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            file_bytes: file.size, preset, ocr_languages: languages,
+            title: bookTitle.trim().slice(0, 160) || file.name.replace(/\.pdf$/i, ""),
+            author: bookAuthor.trim().slice(0, 160),
+          }),
+        });
+        if (!issued.ok) throw new Error(await readError(issued));
+        ticket = await issued.json() as PdfEpubUploadTicket;
+        uploadTicketRef.current = ticket;
+      }
       setError("");
-      // PDF bytes go straight to Cloudflare, never through Vercel.
-      // The bearer below is one-time and expires within five minutes.
-      const response = await fetch(ticket.upload_url, {
-        method: "POST",
-        mode: "cors",
-        credentials: "omit",
-        referrerPolicy: "no-referrer",
-        headers: {
-          "Authorization": "Bearer " + ticket.upload_token,
-          "Content-Type": "application/pdf",
-        },
-        body: file,
-      });
-      if (!response.ok) throw new Error(await readError(response));
-      const first = await response.json() as PdfEpubJob;
+      let first: PdfEpubJob;
+      if (ticket.upload_mode === "chunked") {
+        if (!ticket.chunk_bytes || !ticket.chunk_count || !ticket.finalize_url) {
+          throw new Error("Missing chunked-upload configuration.");
+        }
+        setUploadStage("Checking previously uploaded pieces");
+        const headers = { Authorization: "Bearer " + ticket.upload_token };
+        const statusRes = await fetch(ticket.upload_url, {
+          mode: "cors", credentials: "omit", referrerPolicy: "no-referrer",
+          headers,
+        });
+        if (!statusRes.ok) throw new Error(await readError(statusRes));
+        const prior = await statusRes.json() as { uploaded?: number[]; uploaded_bytes?: number };
+        const done = new Set(prior.uploaded || []);
+        let uploaded = prior.uploaded_bytes || 0;
+        setUploadProgress(Math.min(100, Math.floor(100 * uploaded / file.size)));
+        for (let part = 0; part < ticket.chunk_count; part++) {
+          if (done.has(part)) continue;
+          const start = part * ticket.chunk_bytes;
+          const blob = file.slice(start, Math.min(file.size, start + ticket.chunk_bytes));
+          setUploadStage("Uploading piece " + (part + 1) + " of " + ticket.chunk_count);
+          const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", await blob.arrayBuffer()));
+          const checksum = Array.from(digest, (b) => b.toString(16).padStart(2, "0")).join("");
+          let successful = false;
+          for (let attempt = 0; attempt < 4; attempt++) {
+            try {
+              const response = await fetch(ticket.upload_url + "?part=" + part, {
+                method: "POST", mode: "cors", credentials: "omit", referrerPolicy: "no-referrer",
+                headers: {
+                  ...headers, "Content-Type": "application/octet-stream",
+                  "X-Chunk-SHA256": checksum,
+                },
+                body: blob,
+              });
+              if (!response.ok) {
+                if (![409, 429, 503].includes(response.status)) throw new Error(await readError(response));
+                throw new Error("Temporary upload congestion (HTTP " + response.status + ")");
+              }
+              successful = true;
+              break;
+            } catch (err) {
+              if (attempt === 3) throw err;
+              await sleep(1500 * (attempt + 1));
+            }
+          }
+          if (!successful) throw new Error("Could not upload piece " + (part + 1));
+          uploaded += blob.size;
+          setUploadProgress(Math.min(100, Math.floor(100 * uploaded / file.size)));
+        }
+        setUploadStage("Verifying all pieces and starting conversion");
+        const finalized = await fetch(ticket.finalize_url, {
+          method: "POST", mode: "cors", credentials: "omit", referrerPolicy: "no-referrer",
+          headers,
+        });
+        if (!finalized.ok) throw new Error(await readError(finalized));
+        first = await finalized.json() as PdfEpubJob;
+      } else {
+        setUploadStage("Uploading PDF directly to Cloudflare");
+        const response = await fetch(ticket.upload_url, {
+          method: "POST", mode: "cors", credentials: "omit", referrerPolicy: "no-referrer",
+          headers: {
+            "Authorization": "Bearer " + ticket.upload_token,
+            "Content-Type": "application/pdf",
+          },
+          body: file,
+        });
+        if (!response.ok) throw new Error(await readError(response));
+        first = await response.json() as PdfEpubJob;
+      }
+      uploadTicketRef.current = null;
+      setUploadStage("");
+      setUploadProgress(null);
       if (first.job_id !== ticket.job_id) throw new Error("Conversion service returned a mismatched job ID.");
       if (!first.job_id) throw new Error("No job ID returned by conversion service.");
       currentJobId.current = first.job_id;
@@ -295,7 +365,7 @@ export default function PDFToEpub({ tool }: { tool: Tool }) {
           onClick={() => { setMode("advanced"); reset(); }}
           className={"rounded-xl border-2 p-4 text-left transition-colors " + (mode === "advanced" ? "border-primary bg-primary/5" : "border-border hover:border-primary/30")}>
           <div className="flex items-center gap-2 font-semibold"><Cloud className="h-5 w-5" />Advanced OCR & layout</div>
-          <p className="mt-1 text-xs text-muted-foreground">Uses our Cloudflare + Render converter. OCR, embedded images and conversion presets. Up to 18 MiB via a short-lived direct Cloudflare upload.</p>
+          <p className="mt-1 text-xs text-muted-foreground">Uses our Cloudflare + Render converter. OCR, embedded images and conversion presets. Up to 100 MB via resumable, secured 5 MiB chunks on Cloudflare.</p>
           {serviceReady === false && <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">Currently not configured for this site</p>}
         </button>
         <button type="button" aria-pressed={mode === "browser"} disabled={processing || submitted}
@@ -309,7 +379,7 @@ export default function PDFToEpub({ tool }: { tool: Tool }) {
       {mode === "advanced" && (
         <p className="rounded-xl border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
           Advanced conversion sends the PDF directly from your browser to Cloudflare KV, bypassing the Vercel upload cap. It is processed by Render. Input/output files expire after approximately 24 hours.
-          Free-tier compute may sleep or reach a daily quota. Images, tables, equations and two-column reading order may still need manual review.
+          Free-tier compute may sleep or reach a daily quota. 100 MB is the upload limit, not a guarantee that large OCR-heavy books can be converted. Images, tables and equations may require manual review.
         </p>
       )}
       {mode === "advanced" && (
@@ -341,9 +411,9 @@ export default function PDFToEpub({ tool }: { tool: Tool }) {
 
       {!submitted && !processing && (
         <UploadZone accept={ACCEPTED_PDF_TYPES} multiple={false} maxFiles={1} maxSize={maxFile}
-          onFilesChange={(selected) => { setFiles(selected); reset(); }}
+          onFilesChange={(selected) => { setFiles(selected); uploadTicketRef.current = null; reset(); }}
           title="Choose a PDF to convert to EPUB"
-          description={mode === "advanced" ? "Advanced OCR supports PDFs up to 18 MiB (18,874,368 bytes), directly to Cloudflare" : "Text-only conversion supports PDF up to 18 MiB locally"} />
+          description={mode === "advanced" ? "Advanced OCR accepts PDF files up to 100 MB (100,000,000 bytes), using resumable chunks" : "Text-only conversion supports PDF up to 18 MiB locally"} />
       )}
 
       {files.length > 0 && !submitted && (
@@ -354,6 +424,22 @@ export default function PDFToEpub({ tool }: { tool: Tool }) {
         </Button>
       )}
 
+      {processing && mode === "advanced" && uploadStage && (
+        <div className="space-y-2 rounded-xl border border-border bg-card p-4" role="status">
+          <p className="text-sm font-semibold">{uploadStage}</p>
+          {uploadProgress !== null && (
+            <>
+              <div className="h-2.5 overflow-hidden rounded-full bg-muted">
+                <div className="h-full bg-primary transition-all" style={{ width: uploadProgress + "%" }} />
+              </div>
+              <p className="text-xs text-muted-foreground">{uploadProgress}% uploaded to Cloudflare</p>
+            </>
+          )}
+        </div>
+      )}
+      {error && uploadTicketRef.current?.upload_mode === "chunked" && !processing && files.length > 0 && !job && (
+        <p className="text-xs text-muted-foreground">Select Start advanced conversion again to resume the pieces already uploaded, while the two-hour ticket remains valid.</p>
+      )}
       {job && mode === "advanced" && (
         <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-2xl border border-border bg-card p-5 space-y-4">
           <div className="flex gap-2 items-center">

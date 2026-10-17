@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
-import { PDF_EPUB_PROXY_MAX_BYTES, isPdfHeader, validatePdfEpubSettings } from "@/lib/pdf-epub-contract";
+import { PDF_EPUB_PROXY_MAX_BYTES, PDF_EPUB_DIRECT_MAX_BYTES, isPdfHeader, validatePdfEpubSettings } from "@/lib/pdf-epub-contract";
 import {
   attachJobSession, callEpubApi, epubApiConfigured,
   jsonError, parseBackendError, sameSiteRequest, upstreamErrorStatus,
@@ -12,8 +12,8 @@ export const maxDuration = 60;
 export function GET() {
   return NextResponse.json({
     available: epubApiConfigured(),
-    max_upload_bytes: PDF_EPUB_PROXY_MAX_BYTES,
-    method: "server_proxy",
+    max_upload_bytes: PDF_EPUB_DIRECT_MAX_BYTES,
+    method: "short_lived_direct_upload_token",
     storage: "Cloudflare KV (24-hour temporary retention)",
   }, { headers: { "Cache-Control": "no-store" } });
 }

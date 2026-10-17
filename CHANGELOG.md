@@ -1,5 +1,11 @@
 # AirTools changelog
 
+## 2026-10-17 — User-configured exam photo, signature and thumb resize editor
+- Removed notification-based preset selector and mandatory agency assumptions; image dimensions now initialize from the uploaded file.
+- Added image-resizer-style By Size / As Percentage tabs, aspect ratio lock, target KB, output format, fit/crop controls, live preview and before→after pixel display.
+- Kept local signature, thumb, handwritten declaration, document-to-PDF and ZIP tools, plus optional visual quality guidance.
+
+
 ## 2026-10-17 — Exam Application Tools
 - New dedicated exam/recruitment category with original photo, signature, thumb impression, handwritten declaration and A4 document-to-PDF preparation.
 - Notice-scoped examples with editable pixel and KB constraints, compression search, preview crop, optional gentle paper cleaning and browser-local ZIP kit.

@@ -1,7 +1,7 @@
-import type {ExamAssetKind,ExamImageFormat} from "./exam-upload-specs";
+import type {ExamAssetKind,ExamImageFormat,ExamFitMode} from "./exam-upload-specs";
 import {deriveExamCrop} from "./exam-upload-specs";
 
-export interface RenderSettings {width:number;height:number;kind:ExamAssetKind;zoom:number;x:number;y:number;paperCleanup:boolean;inset:number;}
+export interface RenderSettings {width:number;height:number;kind:ExamAssetKind;zoom:number;x:number;y:number;paperCleanup:boolean;inset:number;fit?:ExamFitMode;}
 export interface ExamImageAnalysis {
   brightness:number;contrast:number;inkFraction:number;darkBorderFraction:number;
   flags:string[];
@@ -25,16 +25,18 @@ export function renderExamImage(image:HTMLImageElement,s:RenderSettings):HTMLCan
  ctx.fillStyle="#ffffff";ctx.fillRect(0,0,s.width,s.height);
  ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality="high";
  const iw=image.naturalWidth,ih=image.naturalHeight;
- if(s.kind==="photo"){
+ const fit=s.fit||"contain";
+ if(fit==="cover"){
    const crop=deriveExamCrop(iw,ih,s.width,s.height,s.zoom,s.x,s.y);
    ctx.drawImage(image,crop.sx,crop.sy,crop.sw,crop.sh,0,0,s.width,s.height);
+ }else if(fit==="stretch"){
+   ctx.drawImage(image,0,0,s.width,s.height);
  }else{
-   const pad=Math.min(.35,Math.max(0,s.inset))/2;
-   const innerW=s.width*(1-2*pad),innerH=s.height*(1-2*pad);
-   const fit=Math.min(innerW/iw,innerH/ih)*Math.min(2,s.zoom);
-   const w=Math.min(s.width,iw*fit),h=Math.min(s.height,ih*fit);
-   const dx=(s.width-w)*s.x,dy=(s.height-h)*s.y;
-   ctx.drawImage(image,dx,dy,w,h);
+   const padding=Math.min(.35,Math.max(0,s.inset))/2;
+   const innerW=s.width*(1-2*padding),innerH=s.height*(1-2*padding);
+   const scale=Math.min(innerW/iw,innerH/ih)*Math.min(2,s.zoom);
+   const w=Math.min(s.width,iw*scale),h=Math.min(s.height,ih*scale);
+   ctx.drawImage(image,(s.width-w)*s.x,(s.height-h)*s.y,w,h);
  }
  if(s.paperCleanup && s.kind!=="photo"){
    const pixels=ctx.getImageData(0,0,s.width,s.height),data=pixels.data;
@@ -56,25 +58,24 @@ export async function canvasAsBlob(canvas:HTMLCanvasElement,format:ExamImageForm
   resolve(b);
  },"image/"+format,quality));
 }
-export async function sizeTargetExport(canvas:HTMLCanvasElement,format:ExamImageFormat,minKB:number,maxKB:number) {
- if(format==="png") {
-   const blob=await canvasAsBlob(canvas,"png");
-   return {blob,quality:null as number|null,inRange:blob.size>=minKB*1024&&blob.size<=maxKB*1024};
+export async function sizeTargetExport(canvas:HTMLCanvasElement,format:ExamImageFormat,minKB=0,maxKB=0) {
+ const lower=Math.max(0,minKB)*1024,upper=maxKB>0?maxKB*1024:Number.POSITIVE_INFINITY;
+ if(format==="png"||(!lower&&!Number.isFinite(upper))) {
+   const blob=await canvasAsBlob(canvas,format,format==="png"?1:.95);
+   return {blob,quality:format==="png"?null:.95,inRange:blob.size>=lower&&blob.size<=upper};
  }
- // Browser JPEG/WebP encoders vary; test multiple qualities and choose a
- // valid in-range result where possible, otherwise choose nearest boundary.
- let best:Blob|null=null,bestQ=0,bestDiff=Number.POSITIVE_INFINITY,bestInRange=false;
- for(let i=0;i<=22;i++){
-   const q=Math.max(.05,.99-i*.0425);
-   const blob=await canvasAsBlob(canvas,format,q);
-   const lower=minKB*1024,upper=maxKB*1024,valid=blob.size>=lower&&blob.size<=upper;
-   const distance=valid?Math.abs(blob.size-(lower+upper)/2):blob.size<lower?lower-blob.size:blob.size-upper;
-   if((valid&&!bestInRange)||(valid===bestInRange&&distance<bestDiff)){
-     best=blob;bestQ=q;bestDiff=distance;bestInRange=valid;
-   }
+ // Highest acceptable quality wins, so tiny file targets preserve as much detail
+ // as possible. Exact KB cannot be promised by browser encoders at fixed pixels.
+ let nearest:Blob|null=null,nearestQuality=0,nearestDistance=Number.POSITIVE_INFINITY;
+ for(let i=0;i<=27;i++){
+   const quality=Math.max(.055,.99-i*.035);
+   const blob=await canvasAsBlob(canvas,format,quality);
+   if(blob.size>=lower&&blob.size<=upper)return {blob,quality,inRange:true};
+   const distance=blob.size<lower?lower-blob.size:blob.size-upper;
+   if(distance<nearestDistance){nearest=blob;nearestQuality=quality;nearestDistance=distance;}
  }
- if(!best)throw Error("Failed to encode image");
- return {blob:best,quality:bestQ,inRange:bestInRange};
+ if(!nearest)throw Error("Image export failed");
+ return {blob:nearest,quality:nearestQuality,inRange:false};
 }
 export function analyzeExamCanvas(canvas:HTMLCanvasElement,kind:ExamAssetKind):ExamImageAnalysis {
  const sample=document.createElement("canvas");sample.width=96;sample.height=96;

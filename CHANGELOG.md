@@ -1,5 +1,14 @@
 # AirTools changelog
 
+## 2026-10-17 — Pre-Submission Exam Form Scrutiny
+- Added a dedicated exam application preview verifier in Exam Tools. Candidates can upload their pre-final-submit saved PDF, saved HTML or screenshot, alongside certificates.
+- Reads selectable PDF text, saved HTML, DOCX, TXT and image files locally with optional on-device OCR. All extracted data requires manual review before a green match is allowed.
+- Compares candidate name, DOB, parent names, gender, category, last four Aadhaar digits, education reference fields and relevant document claims against their appropriate source document types.
+- Clear green/matched, red/mismatch, amber/review and gray/not-checked outcomes; absent/illegible/unconfirmed documents cannot produce false matches.
+- Adds local, redacted-by-default TXT/JSON reports and human final-submit checklist. Does not certify eligibility or acceptance, submit forms, access recruitment portals or store personal records.
+- Added tests, detailed technical/privacy documentation and caps for upload sizes/pages/OCR.
+
+
 ## 2026-10-17 — Bare thumb photo ink styling
 - Added a local-only, experimental bare-thumb photo enhancement tool to Image Tools and Exam Tools.
 - Added black, blue and grayscale ink appearance, manual pan/zoom crop, adaptive local contrast, editable output pixels, optional KB cap and file renaming.

@@ -33,7 +33,7 @@ export function ToolCategories() {
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
           {TOOL_CATEGORIES.map((category, i) => {
             const Icon = iconMap[category.icon];
             const tools = ALL_TOOLS.filter((t) => t.category === category.id).slice(0, 6);

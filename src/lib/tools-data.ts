@@ -3,6 +3,7 @@ import { IMAGE_WORKBENCH_TOOLS, asImageTool } from "@/lib/image-workbench-preset
 
 export const ALL_TOOLS: Tool[] = [
   // Exam Application Tools (not government-affiliated; notice-specific examples)
+  { slug: "exam-thumb-photo-ink", name: "Bare Thumb Photo to Ink Style (Experimental)", description: "Style actual detail visible in a bare-thumb photograph with black or blue ink, editable crop, image dimensions and KB target. Not a genuine biometric thumb impression.", category: "exam", icon: "Fingerprint", color: "text-amber-600", tags: ["thumb", "bare thumb photo", "black ink", "blue ink", "experimental", "exam"], new: true },
   { slug: "exam-application-studio", name: "Exam Application Upload Studio", description: "Prepare photo, signature, thumb, declaration and document files using your own pixels, optional size limits, aspect lock, preview and format settings.", category: "exam", icon: "GraduationCap", color: "text-amber-600", tags: ["exam", "ssc", "ibps", "rrb", "recruitment", "photo", "signature", "thumb", "declaration"], popular: true, new: true },
   { slug: "exam-photo-resizer", name: "Exam Photo Size & KB Maker", description: "Resize your photo by pixels or percentage, lock proportions, choose JPG/PNG/WebP and set an optional maximum KB.", category: "exam", icon: "Image", color: "text-amber-600", tags: ["photo", "size", "pixel", "kb", "recruitment"], new: true },
   { slug: "exam-signature-maker", name: "Signature Size & KB Converter", description: "Resize real signature images with exact pixels, aspect-ratio lock, white padding and optional file-size target.", category: "exam", icon: "PenLine", color: "text-amber-600", tags: ["signature", "resize", "kb", "rrb", "ssc"], new: true },
@@ -56,6 +57,7 @@ export const ALL_TOOLS: Tool[] = [
 
   // Newly implemented image-processing routes. Each has a concrete operation
   // in ImageWorkbench; existing dedicated tools remain mapped as before.
+  { slug: "thumb-photo-to-ink", name: "Bare Thumb Photo to Black / Blue Ink", description: "Experimental local-only image processing to style visible thumb-photo details in black or blue. Cannot recreate missing fingerprint ridges.", category: "image", icon: "Fingerprint", color: "text-green-500", tags: ["thumb photo", "thumb impression", "ink", "black", "blue", "fingerprint"], new: true },
   { slug: "image-toolbox", name: "Image Toolbox — All Image Tools", description: "Browse a searchable directory of real image resizing, effects, conversion, exact-KB, PDF, DPI, photo and signature utilities.", category: "image", icon: "Grid3X3", color: "text-green-500", tags: ["image", "toolbox", "all tools", "edit", "convert", "compress"], popular: true, new: true },
   ...IMAGE_WORKBENCH_TOOLS.map(asImageTool),
   // Image Tools

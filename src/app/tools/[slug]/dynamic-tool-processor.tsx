@@ -59,6 +59,7 @@ const CropImage = dynamic(() => import("@/components/tools/processors/crop-image
 const CropCircleImage = dynamic(() => import("@/components/tools/processors/crop-circle-image"), { loading: () => <ToolLoader /> });
 const ImageMerge = dynamic(() => import("@/components/tools/processors/image-merge"), { loading: () => <ToolLoader /> });
 const ExamApplicationStudio = dynamic(() => import("@/components/tools/processors/exam-application-studio"), { loading: () => <ToolLoader /> });
+const ThumbPhotoInkStudio = dynamic(() => import("@/components/tools/processors/thumb-photo-ink-studio"), { loading: () => <ToolLoader /> });
 const GifMaker = dynamic(() => import("@/components/tools/processors/gif-maker"), { loading: () => <ToolLoader /> });
 const GifToImages = dynamic(() => import("@/components/tools/processors/gif-to-images"), { loading: () => <ToolLoader /> });
 const FlipImage = dynamic(() => import("@/components/tools/processors/flip-image"), { loading: () => <ToolLoader /> });
@@ -81,6 +82,8 @@ function ToolLoader() {
 
 const toolMap: Record<string, React.ComponentType<{ tool: Tool }>> = {
   "image-toolbox": ImageToolboxDirectory,
+  "thumb-photo-to-ink": ThumbPhotoInkStudio,
+  "exam-thumb-photo-ink": ThumbPhotoInkStudio,
   "compress-pdf": CompressPDF,
   "merge-pdf": MergePDF,
   "merge-pdf-image": MergePDF,

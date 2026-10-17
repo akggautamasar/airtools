@@ -54,7 +54,6 @@ function suggestedKind(slug:string):ExamAssetKind {
  if(slug.includes("document"))return "document";
  return "photo";
 }
-function cleanName(name:string){return name.replace(/\.[^.]+$/,"").replace(/[^a-z0-9_.-]+/gi,"-").slice(0,65)||"image";}
 function previewCanvas(source:HTMLCanvasElement,target:HTMLCanvasElement) {
  const scale=Math.min(1,450/Math.max(source.width,source.height));
  target.width=Math.max(1,Math.round(source.width*scale));
@@ -94,6 +93,8 @@ export default function ExamApplicationStudio({tool}:{tool:Tool}) {
  const [unit,setUnit]=useState<ExamDimensionUnit>("px");
  const [dpi,setDpi]=useState(DEFAULT_EXAM_DPI);
  const [renameBase,setRenameBase]=useState("");
+ const [widthDraft,setWidthDraft]=useState<string|null>(null);
+ const [heightDraft,setHeightDraft]=useState<string|null>(null);
  const [lockAspect,setLockAspect]=useState(true);
  const [percentage,setPercentage]=useState(100);
  const [fit,setFit]=useState<ExamFitMode>("contain");
@@ -132,6 +133,7 @@ export default function ExamApplicationStudio({tool}:{tool:Tool}) {
  function resetEditor(){
   setMode("size");setLockAspect(true);setPercentage(100);setFit("contain");
   setUnit("px");setDpi(DEFAULT_EXAM_DPI);setRenameBase("");
+  setWidthDraft(null);setHeightDraft(null);
   setZoom(1);setOffsetX(.5);setOffsetY(.5);setPaperCleanup(false);
   setFormat("original");setMaxKB("");setMinKB("");setError("");setOutput(null);setAnalysis(null);
  }
@@ -157,7 +159,7 @@ export default function ExamApplicationStudio({tool}:{tool:Tool}) {
  }
  function setDimension(which:"width"|"height",raw:string){
   const v=Number(raw);
-  if(!raw.trim()||!Number.isFinite(v))return;
+  if(!raw.trim()||!Number.isFinite(v)||v<=0)return;
   const next=clampExamDimension(physicalToPixels(v,unit,dpi));
   if(which==="width"){
    setWidth(next);
@@ -177,7 +179,7 @@ export default function ExamApplicationStudio({tool}:{tool:Tool}) {
    setWidth(w);
    setHeight(lockAspect?dimensionFromOther(w,originalH,originalW):h);
   }
-  setDpi(next);setOutput(null);
+  setDpi(next);setOutput(null);setWidthDraft(null);setHeightDraft(null);
  }
  function changeRename(value:string){
   setRenameBase(value);
@@ -283,7 +285,7 @@ export default function ExamApplicationStudio({tool}:{tool:Tool}) {
     {source&&<>
      <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">{source.file.name} · {formatFileSize(source.file.size)}</span>
      <button type="button" className="rounded-lg border border-border p-2 text-muted-foreground hover:text-foreground" title="Remove image"
-      onClick={()=>{setSource(null);setOutput(null);setPreviewReady(false);if(picker.current)picker.current.value="";}}>
+      onClick={()=>{setSource(null);setOutput(null);setRenameBase("");setPreviewReady(false);if(picker.current)picker.current.value="";}}>
       <Trash2 className="h-4 w-4"/>
      </button>
     </>}
@@ -305,22 +307,22 @@ export default function ExamApplicationStudio({tool}:{tool:Tool}) {
        <div className="grid grid-cols-2 gap-3">
         <label className="text-sm">Width
          <input type="number" min="0.001" max={unit==="px"?4000:undefined} step={unit==="px"?1:.001}
-          aria-label={"Width in "+unit} value={formatDimensionValue(width,unit,dpi)}
-          disabled={!source} onChange={e=>setDimension("width",e.target.value)}
+          aria-label={"Width in "+unit} value={widthDraft??formatDimensionValue(width,unit,dpi)}
+          disabled={!source} onBlur={()=>setWidthDraft(null)} onChange={e=>{setWidthDraft(e.target.value);setDimension("width",e.target.value);}}
           className="mt-2 w-full rounded-lg border border-border bg-background px-3 py-3"/>
         </label>
         <div>
          <div className="flex items-center justify-between gap-1">
           <label htmlFor="exam-editor-height" className="text-sm">Height</label>
           <select aria-label="Dimension unit" title="Dimension unit" value={unit}
-           onChange={e=>{setUnit(e.target.value as ExamDimensionUnit);setOutput(null);}}
+           onChange={e=>{setUnit(e.target.value as ExamDimensionUnit);setWidthDraft(null);setHeightDraft(null);setOutput(null);}}
            className="max-w-[125px] rounded-md border border-border bg-background px-1 py-0.5 text-xs">
            {EXAM_DIMENSION_UNITS.map(item=><option key={item.value} value={item.value}>{item.label}</option>)}
           </select>
          </div>
          <input id="exam-editor-height" type="number" min="0.001" max={unit==="px"?4000:undefined} step={unit==="px"?1:.001}
-          aria-label={"Height in "+unit} value={formatDimensionValue(height,unit,dpi)}
-          disabled={!source} onChange={e=>setDimension("height",e.target.value)}
+          aria-label={"Height in "+unit} value={heightDraft??formatDimensionValue(height,unit,dpi)}
+          disabled={!source} onBlur={()=>setHeightDraft(null)} onChange={e=>{setHeightDraft(e.target.value);setDimension("height",e.target.value);}}
           className="mt-2 w-full rounded-lg border border-border bg-background px-3 py-3"/>
         </div>
        </div>

@@ -1,12 +1,11 @@
-/** Duplicated tiny pure helpers so Node's native test runner can load this engine
- * without TypeScript-extension resolution conflicts in Next's tsconfig. */
+/** Pure local helpers; no cross-module runtime imports are needed. */
 function parseSuggestedDate(input:string):string|null {
   const raw=input.trim();
   let y:number,m:number,d:number;
-  let match=/^(\\d{4})-(\\d{1,2})-(\\d{1,2})$/.exec(raw);
+  let match=/^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(raw);
   if(match){y=Number(match[1]);m=Number(match[2]);d=Number(match[3]);}
   else {
-    match=/^(\\d{1,2})[\\/-](\\d{1,2})[\\/-](\\d{4})$/.exec(raw);
+    match=/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/.exec(raw);
     if(!match)return null;
     d=Number(match[1]);m=Number(match[2]);y=Number(match[3]);
   }
@@ -30,7 +29,6 @@ function fuzzyNameReview(a:string,b:string):boolean {
   }
   return last[b.length]<=2;
 }
-
 
 export const DOC_KINDS = [
   { id:"class10", label:"Class 10 / Matriculation marksheet" },

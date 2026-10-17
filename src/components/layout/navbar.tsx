@@ -6,7 +6,7 @@ import { useTheme } from "next-themes";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Menu, X, Search, Sun, Moon, ChevronDown, Zap,
-  FileText, Image, Wrench, BookOpen
+  FileText, Image, Wrench, BookOpen, GraduationCap
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +31,12 @@ const navItems = [
     href: "/tools?category=ebook",
     icon: BookOpen,
     color: "text-purple-500",
+  },
+  {
+    label: "Exam Tools",
+    href: "/tools?category=exam",
+    icon: GraduationCap,
+    color: "text-amber-600",
   },
   {
     label: "Utility Tools",
@@ -90,7 +96,7 @@ export function Navbar() {
             </Link>
 
             {/* Desktop Nav */}
-            <nav className="hidden md:flex items-center gap-1">
+            <nav className="hidden lg:flex items-center gap-1">
               {navItems.map((item) => (
                 <Link
                   key={item.href}
@@ -137,7 +143,7 @@ export function Navbar() {
               </button>
 
               <button
-                className="md:hidden w-9 h-9 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors"
+                className="lg:hidden w-9 h-9 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors"
                 onClick={() => setMobileOpen(!mobileOpen)}
               >
                 {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -153,7 +159,7 @@ export function Navbar() {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
-              className="md:hidden border-t border-border bg-background"
+              className="lg:hidden border-t border-border bg-background"
             >
               <div className="px-4 py-4 space-y-1">
                 <div className="relative mb-3">

@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { Search, Filter, ArrowRight, FileText, Image, BookOpen, Wrench } from "lucide-react";
+import { Search, Filter, ArrowRight, FileText, Image, BookOpen, Wrench, GraduationCap } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ALL_TOOLS, TOOL_CATEGORIES } from "@/lib/tools-data";
@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import { ToolCategory } from "@/types";
 
 const iconMap: Record<string, React.ElementType> = {
-  FileText, Image, BookOpen, Wrench,
+  FileText, Image, BookOpen, Wrench, GraduationCap,
 };
 
 export function ToolsPageContent() {
@@ -129,6 +129,7 @@ export function ToolsPageContent() {
                       tool.category === "image" && "bg-green-50 dark:bg-green-950/20",
                       tool.category === "ebook" && "bg-purple-50 dark:bg-purple-950/20",
                       tool.category === "utility" && "bg-blue-50 dark:bg-blue-950/20",
+                      tool.category === "exam" && "bg-amber-50 dark:bg-amber-950/20",
                     )}>
                       <FileText className={cn("w-5 h-5", tool.color)} />
                     </div>

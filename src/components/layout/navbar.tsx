@@ -6,7 +6,7 @@ import { useTheme } from "next-themes";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Menu, X, Search, Sun, Moon, ChevronDown, Zap,
-  FileText, Image, Wrench, BookOpen
+  FileText, Image, Wrench, BookOpen, GraduationCap
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +31,12 @@ const navItems = [
     href: "/tools?category=ebook",
     icon: BookOpen,
     color: "text-purple-500",
+  },
+  {
+    label: "Exam Tools",
+    href: "/tools?category=exam",
+    icon: GraduationCap,
+    color: "text-amber-600",
   },
   {
     label: "Utility Tools",

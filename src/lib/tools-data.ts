@@ -1,6 +1,15 @@
 import { Tool } from "@/types";
 
 export const ALL_TOOLS: Tool[] = [
+  // Exam Application Tools (not government-affiliated; notice-specific examples)
+  { slug: "exam-application-studio", name: "Exam Application Upload Studio", description: "All-in-one exam photo, signature, thumb impression, declaration and document preparer with notice presets, precise KB/pixels and readiness checklists.", category: "exam", icon: "GraduationCap", color: "text-amber-600", tags: ["exam", "ssc", "ibps", "rrb", "recruitment", "photo", "signature", "thumb", "declaration"], popular: true, new: true },
+  { slug: "exam-photo-resizer", name: "Exam Photo Size & KB Maker", description: "Crop original exam photos to custom pixels and JPEG KB ranges; review common rejection risks and live-photo requirements.", category: "exam", icon: "Image", color: "text-amber-600", tags: ["photo", "size", "pixel", "kb", "recruitment"], new: true },
+  { slug: "exam-signature-maker", name: "Signature Size & KB Converter", description: "Fit scanned signatures on white paper without distortion, set exact pixels and compression targets, and check visibility.", category: "exam", icon: "PenLine", color: "text-amber-600", tags: ["signature", "resize", "kb", "rrb", "ssc"], new: true },
+  { slug: "exam-thumb-impression", name: "Thumb Impression Resizer", description: "Prepare real left/right thumb scans for recruitment portals with dimension presets, ink visibility guidance and file checks.", category: "exam", icon: "Fingerprint", color: "text-amber-600", tags: ["thumb", "finger", "impression", "ibps", "kb"], new: true },
+  { slug: "exam-handwritten-declaration", name: "Handwritten Declaration Resizer", description: "Resize genuine handwritten declarations for exam registration with 800×400 example, size optimization and wording checklist.", category: "exam", icon: "ScrollText", color: "text-amber-600", tags: ["declaration", "handwriting", "ibps", "application"], new: true },
+  { slug: "exam-document-to-pdf", name: "Exam Certificate Scan to PDF", description: "Turn readable scanned certificate images into A4 PDFs with custom maximum upload size; check official notice requirements.", category: "exam", icon: "FileText", color: "text-amber-600", tags: ["document", "certificate", "pdf", "a4", "scan"], new: true },
+  { slug: "exam-photo-checker", name: "Accepted / Rejected Photo Checker", description: "See photo, signature and thumb rejection risks with local brightness, contrast and ink/edge checks.", category: "exam", icon: "ShieldCheck", color: "text-amber-600", tags: ["accepted", "rejected", "photo", "signature", "checklist"], new: true },
+  { slug: "exam-upload-kit", name: "Exam Upload Kit ZIP Builder", description: "Prepare photo, signature, thumb, declaration and document files together and download a ZIP locally.", category: "exam", icon: "Package", color: "text-amber-600", tags: ["exam kit", "zip", "form", "upload"], new: true },
   // PDF Tools
   { slug: "compress-pdf", name: "Compress PDF", description: "Optimize PDF structure when this reduces file size; embedded images are not recompressed.", category: "pdf", icon: "FileDown", color: "text-red-500", tags: ["compress", "reduce", "optimize"], popular: true },
   { slug: "merge-pdf", name: "Merge PDF", description: "Combine multiple PDF files into one document. Easily merge and organize your PDFs.", category: "pdf", icon: "FilePlus2", color: "text-red-500", tags: ["merge", "combine", "join"], popular: true },
@@ -131,6 +140,16 @@ export const TOOL_CATEGORIES = [
     bgColor: "bg-green-50 dark:bg-green-950/20",
     borderColor: "border-green-200 dark:border-green-800",
     count: ALL_TOOLS.filter((t) => t.category === "image").length,
+  },
+  {
+    id: "exam",
+    name: "Exam Application Tools",
+    description: "Prepare exam photo, signature, thumb and declaration uploads",
+    icon: "GraduationCap",
+    color: "text-amber-600",
+    bgColor: "bg-amber-50 dark:bg-amber-950/20",
+    borderColor: "border-amber-200 dark:border-amber-800",
+    count: ALL_TOOLS.filter((t) => t.category === "exam").length,
   },
   {
     id: "utility",

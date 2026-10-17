@@ -1,5 +1,11 @@
 # AirTools changelog
 
+## 2026-10-17 — Exam Application Tools
+- New dedicated exam/recruitment category with original photo, signature, thumb impression, handwritten declaration and A4 document-to-PDF preparation.
+- Notice-scoped examples with editable pixel and KB constraints, compression search, preview crop, optional gentle paper cleaning and browser-local ZIP kit.
+- Human-readable accepted/rejected guidance, local quality hints and clear limits. No government acceptance certification.
+
+
 ## 2026-10-17 — Photo studios
 - Upgraded legacy AI Background Remover into an on-device studio with batch cutouts, backdrops, shadows, brush edge cleanup and watermark-free PNG/ZIP exports.
 - Added discoverable Background Studio, Batch Background Remover and Product Photo Studio tool entries.

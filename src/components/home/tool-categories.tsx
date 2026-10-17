@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { ArrowRight, FileText, Image, BookOpen, Wrench } from "lucide-react";
+import { ArrowRight, FileText, Image, BookOpen, Wrench, GraduationCap } from "lucide-react";
 import { TOOL_CATEGORIES, ALL_TOOLS } from "@/lib/tools-data";
 import { cn } from "@/lib/utils";
 
@@ -11,6 +11,7 @@ const iconMap: Record<string, React.ElementType> = {
   Image,
   BookOpen,
   Wrench,
+  GraduationCap,
 };
 
 export function ToolCategories() {
@@ -28,11 +29,11 @@ export function ToolCategories() {
             <span className="gradient-text"> Need</span>
           </h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Browse our complete collection of PDF, image, eBook, and utility tools.
+            Browse our complete collection of PDF, image, exam application, eBook, and utility tools.
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
           {TOOL_CATEGORIES.map((category, i) => {
             const Icon = iconMap[category.icon];
             const tools = ALL_TOOLS.filter((t) => t.category === category.id).slice(0, 6);

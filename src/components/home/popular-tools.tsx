@@ -15,6 +15,7 @@ const categoryColors: Record<string, string> = {
   image: "bg-green-50 dark:bg-green-950/20 text-green-600",
   ebook: "bg-purple-50 dark:bg-purple-950/20 text-purple-600",
   utility: "bg-blue-50 dark:bg-blue-950/20 text-blue-600",
+  exam: "bg-amber-50 dark:bg-amber-950/20 text-amber-600",
 };
 
 const categoryIconBg: Record<string, string> = {
@@ -22,6 +23,7 @@ const categoryIconBg: Record<string, string> = {
   image: "bg-green-100 dark:bg-green-900/30",
   ebook: "bg-purple-100 dark:bg-purple-900/30",
   utility: "bg-blue-100 dark:bg-blue-900/30",
+  exam: "bg-amber-100 dark:bg-amber-900/30",
 };
 
 export function PopularTools() {

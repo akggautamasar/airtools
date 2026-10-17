@@ -1,12 +1,13 @@
 import { Badge } from "@/components/ui/badge";
 import { Tool } from "@/types";
-import { FileText, Image, BookOpen, Wrench } from "lucide-react";
+import { FileText, Image, BookOpen, Wrench, GraduationCap } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const categoryConfig: Record<string, { icon: React.ElementType; color: string; bg: string; label: string }> = {
   pdf: { icon: FileText, color: "text-red-500", bg: "bg-red-50 dark:bg-red-950/20", label: "PDF Tool" },
   image: { icon: Image, color: "text-green-500", bg: "bg-green-50 dark:bg-green-950/20", label: "Image Tool" },
   ebook: { icon: BookOpen, color: "text-purple-500", bg: "bg-purple-50 dark:bg-purple-950/20", label: "eBook Tool" },
+  exam: { icon: GraduationCap, color: "text-amber-600", bg: "bg-amber-50 dark:bg-amber-950/20", label: "Exam Tool" },
   utility: { icon: Wrench, color: "text-blue-500", bg: "bg-blue-50 dark:bg-blue-950/20", label: "Utility Tool" },
 };
 

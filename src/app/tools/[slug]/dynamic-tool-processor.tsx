@@ -55,7 +55,7 @@ const MobiToPDF = dynamic(() => import("@/components/tools/processors/mobi-to-pd
 const CropImage = dynamic(() => import("@/components/tools/processors/crop-image"), { loading: () => <ToolLoader /> });
 const CropCircleImage = dynamic(() => import("@/components/tools/processors/crop-circle-image"), { loading: () => <ToolLoader /> });
 const ImageMerge = dynamic(() => import("@/components/tools/processors/image-merge"), { loading: () => <ToolLoader /> });
-const PhotoSignatureResize = dynamic(() => import("@/components/tools/processors/photo-signature-resize"), { loading: () => <ToolLoader /> });
+const ExamApplicationStudio = dynamic(() => import("@/components/tools/processors/exam-application-studio"), { loading: () => <ToolLoader /> });
 const GifMaker = dynamic(() => import("@/components/tools/processors/gif-maker"), { loading: () => <ToolLoader /> });
 const GifToImages = dynamic(() => import("@/components/tools/processors/gif-to-images"), { loading: () => <ToolLoader /> });
 const FlipImage = dynamic(() => import("@/components/tools/processors/flip-image"), { loading: () => <ToolLoader /> });
@@ -134,7 +134,15 @@ const toolMap: Record<string, React.ComponentType<{ tool: Tool }>> = {
   "crop-image": CropImage,
   "crop-circle-image": CropCircleImage,
   "image-merge": ImageMerge,
-  "photo-signature-resize": PhotoSignatureResize,
+  "photo-signature-resize": ExamApplicationStudio,
+  "exam-application-studio": ExamApplicationStudio,
+  "exam-photo-resizer": ExamApplicationStudio,
+  "exam-signature-maker": ExamApplicationStudio,
+  "exam-thumb-impression": ExamApplicationStudio,
+  "exam-handwritten-declaration": ExamApplicationStudio,
+  "exam-document-to-pdf": ExamApplicationStudio,
+  "exam-photo-checker": ExamApplicationStudio,
+  "exam-upload-kit": ExamApplicationStudio,
   "gif-maker": GifMaker,
   "gif-to-images": GifToImages,
   "flip-image": FlipImage,

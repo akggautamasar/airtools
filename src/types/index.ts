@@ -14,6 +14,7 @@ export type ToolCategory =
   | "pdf"
   | "ebook"
   | "image"
+  | "exam"
   | "utility";
 
 export interface UploadedFile {

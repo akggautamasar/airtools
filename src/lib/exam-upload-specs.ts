@@ -47,3 +47,47 @@ export function validateExamOutput(
 export function examOutputName(kind:ExamAssetKind,format:ExamImageFormat) {
  return "airtools-"+kind+"."+(format==="jpeg"?"jpg":format);
 }
+
+/** Physical dimensions are converted into pixel counts using the user-supplied DPI.
+ * Canvas exports do not necessarily embed matching DPI/EXIF metadata. */
+export type ExamDimensionUnit = "px" | "in" | "cm" | "mm";
+export const EXAM_DIMENSION_UNITS: {value:ExamDimensionUnit;label:string}[] = [
+ {value:"px",label:"pixel"},
+ {value:"in",label:"inch"},
+ {value:"cm",label:"centimeter"},
+ {value:"mm",label:"millimeter"},
+];
+export const DEFAULT_EXAM_DPI = 300;
+export function validateExamDpi(dpi:number):number {
+ if(!Number.isFinite(dpi)||!Number.isInteger(dpi)||dpi<36||dpi>1200)
+  throw Error("DPI must be a whole number between 36 and 1200.");
+ return dpi;
+}
+export function physicalToPixels(value:number,unit:ExamDimensionUnit,dpi:number):number {
+ if(!Number.isFinite(value)||value<=0) throw Error("Dimension must be greater than zero.");
+ if(unit==="px")return Math.round(value);
+ validateExamDpi(dpi);
+ const inches=unit==="in"?value:unit==="cm"?value/2.54:value/25.4;
+ return Math.round(inches*dpi);
+}
+export function pixelsToPhysical(pixels:number,unit:ExamDimensionUnit,dpi:number):number {
+ if(!Number.isFinite(pixels)||pixels<=0) throw Error("Invalid pixel dimension.");
+ if(unit==="px")return pixels;
+ validateExamDpi(dpi);
+ const inches=pixels/dpi;
+ return unit==="in"?inches:unit==="cm"?inches*2.54:inches*25.4;
+}
+export function formatDimensionValue(pixels:number,unit:ExamDimensionUnit,dpi:number):number {
+ const n=pixelsToPhysical(pixels,unit,dpi);
+ return unit==="px"?n:Number(n.toFixed(3));
+}
+/** Keep the user's source name by default; append -AirTools and the actual format.
+ * Custom names can include a source extension, which is replaced on export. */
+export function buildExamDownloadFilename(sourceName:string,rename:string,extension:string):string {
+ const stripExt=(value:string)=>value.replace(/\.(?:jpe?g|png|webp|pdf)$/i,"");
+ const sourceBase=stripExt(sourceName.split(/[\\/]/).pop()||"image");
+ const manual=stripExt(rename.trim());
+ const cleaned=(manual||sourceBase+"-AirTools")
+  .replace(/[\\/<>:"|?*\x00-\x1f\x7f]/g,"-").replace(/\.+$/g,"").trim().slice(0,120);
+ return (cleaned||"image-AirTools")+"."+extension;
+}

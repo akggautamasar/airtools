@@ -11,8 +11,9 @@ import { downloadBlob, formatFileSize } from "@/lib/utils";
 import type { Tool } from "@/types";
 import {
   clampExamDimension, dimensionFromOther, percentDimensions,
-  UPLOAD_KINDS, validateExamOutput,
-  type ExamAssetKind, type ExamFitMode, type ExamImageFormat
+  buildExamDownloadFilename, EXAM_DIMENSION_UNITS, DEFAULT_EXAM_DPI,
+  formatDimensionValue, physicalToPixels, pixelsToPhysical, UPLOAD_KINDS, validateExamOutput,
+  type ExamAssetKind, type ExamDimensionUnit, type ExamFitMode, type ExamImageFormat
 } from "@/lib/exam-upload-specs";
 import {
   analyzeExamCanvas, canvasAsBlob, loadExamImage, renderExamImage, sizeTargetExport,
@@ -53,7 +54,6 @@ function suggestedKind(slug:string):ExamAssetKind {
  if(slug.includes("document"))return "document";
  return "photo";
 }
-function cleanName(name:string){return name.replace(/\.[^.]+$/,"").replace(/[^a-z0-9_.-]+/gi,"-").slice(0,65)||"image";}
 function previewCanvas(source:HTMLCanvasElement,target:HTMLCanvasElement) {
  const scale=Math.min(1,450/Math.max(source.width,source.height));
  target.width=Math.max(1,Math.round(source.width*scale));
@@ -90,6 +90,11 @@ export default function ExamApplicationStudio({tool}:{tool:Tool}) {
  const [mode,setMode]=useState<ResizeMode>("size");
  const [width,setWidth]=useState(200);
  const [height,setHeight]=useState(200);
+ const [unit,setUnit]=useState<ExamDimensionUnit>("px");
+ const [dpi,setDpi]=useState(DEFAULT_EXAM_DPI);
+ const [renameBase,setRenameBase]=useState("");
+ const [widthDraft,setWidthDraft]=useState<string|null>(null);
+ const [heightDraft,setHeightDraft]=useState<string|null>(null);
  const [lockAspect,setLockAspect]=useState(true);
  const [percentage,setPercentage]=useState(100);
  const [fit,setFit]=useState<ExamFitMode>("contain");
@@ -119,11 +124,16 @@ export default function ExamApplicationStudio({tool}:{tool:Tool}) {
  const maxNumber=maxKB.trim()?Number(maxKB):null;
  const minNumber=minKB.trim()?Number(minKB):null;
  const extension=effectiveFormat==="jpeg"?"jpg":effectiveFormat;
- const displayName=source?cleanName(source.file.name)+"-"+actual.width+"x"+actual.height+"."+extension:"";
+ const displayName=source?buildExamDownloadFilename(source.file.name,"",extension):"";
+ const finalDownloadName=output&&source
+  ?buildExamDownloadFilename(source.file.name,renameBase,output.name.endsWith(".pdf")?"pdf":extension)
+  :"";
  const canEdit=!!source&&!busy;
 
  function resetEditor(){
   setMode("size");setLockAspect(true);setPercentage(100);setFit("contain");
+  setUnit("px");setDpi(DEFAULT_EXAM_DPI);setRenameBase("");
+  setWidthDraft(null);setHeightDraft(null);
   setZoom(1);setOffsetX(.5);setOffsetY(.5);setPaperCleanup(false);
   setFormat("original");setMaxKB("");setMinKB("");setError("");setOutput(null);setAnalysis(null);
  }
@@ -132,7 +142,7 @@ export default function ExamApplicationStudio({tool}:{tool:Tool}) {
   setKind(id);
   // Preserve the uploaded image across editor modes, but each type gets a
   // separate exported entry in the kit.
-  setOutput(null);setPaperCleanup(false);setFit("contain");setError("");
+  setOutput(null);setPaperCleanup(false);setFit("contain");setError("");setRenameBase("");
  }
  async function upload(file?:File) {
   setError("");setOutput(null);setSource(null);setPreviewReady(false);
@@ -149,8 +159,8 @@ export default function ExamApplicationStudio({tool}:{tool:Tool}) {
  }
  function setDimension(which:"width"|"height",raw:string){
   const v=Number(raw);
-  if(!raw.trim()||!Number.isFinite(v))return;
-  const next=clampExamDimension(v);
+  if(!raw.trim()||!Number.isFinite(v)||v<=0)return;
+  const next=clampExamDimension(physicalToPixels(v,unit,dpi));
   if(which==="width"){
    setWidth(next);
    if(lockAspect)setHeight(dimensionFromOther(next,originalH,originalW));
@@ -159,6 +169,24 @@ export default function ExamApplicationStudio({tool}:{tool:Tool}) {
    if(lockAspect)setWidth(dimensionFromOther(next,originalW,originalH));
   }
   setOutput(null);
+ }
+ function changeDpi(raw:string){
+  const next=Math.round(Number(raw));
+  if(!raw.trim()||!Number.isFinite(next)||next<36||next>1200)return;
+  if(unit!=="px"&&mode==="size"){
+   const w=clampExamDimension(physicalToPixels(pixelsToPhysical(width,unit,dpi),unit,next));
+   const h=clampExamDimension(physicalToPixels(pixelsToPhysical(height,unit,dpi),unit,next));
+   setWidth(w);
+   setHeight(lockAspect?dimensionFromOther(w,originalH,originalW):h);
+  }
+  setDpi(next);setOutput(null);setWidthDraft(null);setHeightDraft(null);
+ }
+ function changeRename(value:string){
+  setRenameBase(value);
+  if(!output||!source)return;
+  const ext=output.name.toLowerCase().endsWith(".pdf")?"pdf":extension;
+  const name=buildExamDownloadFilename(source.file.name,value,ext);
+  setKit(items=>items.map(item=>item.kind===kind&&item.blob===output.blob?{...item,name}:item));
  }
  function newFit(v:ExamFitMode){
   setFit(v);setZoom(1);setOffsetX(.5);setOffsetY(.5);setOutput(null);
@@ -201,7 +229,7 @@ export default function ExamApplicationStudio({tool}:{tool:Tool}) {
     const issues:string[]=[];
     if(minNumber!==null&&pdf.size<minNumber*1024)issues.push("PDF is smaller than your requested minimum.");
     if(maxNumber!==null&&pdf.size>maxNumber*1024)issues.push("PDF exceeds your maximum KB.");
-    const result={blob:pdf,name:cleanName(source.file.name)+"-A4.pdf",width:595,height:842,issues};
+    const result={blob:pdf,name:buildExamDownloadFilename(source.file.name,"","pdf"),width:595,height:842,issues};
     setOutput(result);setKit(items=>[...items.filter(i=>i.kind!==kind),{kind,blob:pdf,name:result.name,issues}]);
    }else{
     const canvas=renderExamImage(source.image,{
@@ -213,7 +241,7 @@ export default function ExamApplicationStudio({tool}:{tool:Tool}) {
      width:actual.width,height:actual.height,format:effectiveFormat,
      ...(minNumber!==null?{minKB:minNumber}:{}),...(maxNumber!==null?{maxKB:maxNumber}:{})
     },result.blob.type);
-    const outputName=cleanName(source.file.name)+"-"+kind+"-"+actual.width+"x"+actual.height+"."+extension;
+    const outputName=buildExamDownloadFilename(source.file.name,"",extension);
     const value={blob:result.blob,name:outputName,issues:technical.issues,width:actual.width,height:actual.height};
     setOutput(value);
     setKit(items=>[...items.filter(i=>i.kind!==kind),{kind,blob:result.blob,name:outputName,issues:technical.issues}]);
@@ -227,7 +255,8 @@ export default function ExamApplicationStudio({tool}:{tool:Tool}) {
   try{
    const JSZip=(await import("jszip")).default;
    const zip=new JSZip();
-   kit.forEach(item=>zip.file(item.name,item.blob));
+   // Separate folders avoid collisions across photo/signature outputs.
+   kit.forEach(item=>zip.folder(item.kind)?.file(item.name,item.blob));
    downloadBlob(await zip.generateAsync({type:"blob"}),"airtools-form-upload-files.zip");
   }catch(e){setError(e instanceof Error?e.message:"Could not create ZIP file");}
   finally{setBusy(false);}
@@ -256,7 +285,7 @@ export default function ExamApplicationStudio({tool}:{tool:Tool}) {
     {source&&<>
      <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">{source.file.name} · {formatFileSize(source.file.size)}</span>
      <button type="button" className="rounded-lg border border-border p-2 text-muted-foreground hover:text-foreground" title="Remove image"
-      onClick={()=>{setSource(null);setOutput(null);setPreviewReady(false);if(picker.current)picker.current.value="";}}>
+      onClick={()=>{setSource(null);setOutput(null);setRenameBase("");setPreviewReady(false);if(picker.current)picker.current.value="";}}>
       <Trash2 className="h-4 w-4"/>
      </button>
     </>}
@@ -276,15 +305,35 @@ export default function ExamApplicationStudio({tool}:{tool:Tool}) {
       </div>
       {mode==="size" ? <>
        <div className="grid grid-cols-2 gap-3">
-        <label className="text-sm">Width <span className="text-xs text-muted-foreground">(px)</span>
-         <input type="number" min="20" max="4000" step="1" value={width} disabled={!source} onChange={e=>setDimension("width",e.target.value)}
+        <label className="text-sm">Width
+         <input type="number" min="0.001" max={unit==="px"?4000:undefined} step={unit==="px"?1:.001}
+          aria-label={"Width in "+unit} value={widthDraft??formatDimensionValue(width,unit,dpi)}
+          disabled={!source} onBlur={()=>setWidthDraft(null)} onChange={e=>{setWidthDraft(e.target.value);setDimension("width",e.target.value);}}
           className="mt-2 w-full rounded-lg border border-border bg-background px-3 py-3"/>
         </label>
-        <label className="text-sm">Height <span className="text-xs text-muted-foreground">(px)</span>
-         <input type="number" min="20" max="4000" step="1" value={height} disabled={!source} onChange={e=>setDimension("height",e.target.value)}
+        <div>
+         <div className="flex items-center justify-between gap-1">
+          <label htmlFor="exam-editor-height" className="text-sm">Height</label>
+          <select aria-label="Dimension unit" title="Dimension unit" value={unit}
+           onChange={e=>{setUnit(e.target.value as ExamDimensionUnit);setWidthDraft(null);setHeightDraft(null);setOutput(null);}}
+           className="max-w-[125px] rounded-md border border-border bg-background px-1 py-0.5 text-xs">
+           {EXAM_DIMENSION_UNITS.map(item=><option key={item.value} value={item.value}>{item.label}</option>)}
+          </select>
+         </div>
+         <input id="exam-editor-height" type="number" min="0.001" max={unit==="px"?4000:undefined} step={unit==="px"?1:.001}
+          aria-label={"Height in "+unit} value={heightDraft??formatDimensionValue(height,unit,dpi)}
+          disabled={!source} onBlur={()=>setHeightDraft(null)} onChange={e=>{setHeightDraft(e.target.value);setDimension("height",e.target.value);}}
           className="mt-2 w-full rounded-lg border border-border bg-background px-3 py-3"/>
-        </label>
+        </div>
        </div>
+       {unit!=="px"&&<div className="space-y-1 rounded-lg border border-border bg-muted/40 p-3">
+        <label htmlFor="exam-editor-dpi" className="block text-sm font-medium">Resolution (DPI / PPI)</label>
+        <input id="exam-editor-dpi" type="number" min="36" max="1200" step="1" value={dpi}
+         onChange={e=>changeDpi(e.target.value)}
+         className="w-full rounded-lg border border-border bg-background p-2.5"/>
+        <p className="text-xs text-muted-foreground">Physical size converts to pixels at {dpi} PPI. Output: {actual.width} × {actual.height} px.
+         Canvas downloads may not include matching DPI metadata.</p>
+       </div>}
        <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" checked={lockAspect} onChange={e=>{
          const next=e.target.checked;setLockAspect(next);
@@ -292,7 +341,7 @@ export default function ExamApplicationStudio({tool}:{tool:Tool}) {
         }}/>
         <LockKeyhole className="h-4 w-4 text-muted-foreground"/>Lock aspect ratio
        </label>
-       <p className="text-xs text-muted-foreground">Unlock to set any width and height. The Fit option controls whether the image is cropped or padded.</p>
+       <p className="text-xs text-muted-foreground">Unlock to set width and height independently. {unit==="px"?"Enter pixels directly.":"Physical dimensions are converted to pixels using your chosen DPI."} Fit controls cropping and white padding.</p>
       </>:<>
        <label className="block text-sm">Size: <strong>{percentage}%</strong>
         <div className="mt-2 flex items-center gap-3 rounded-xl border border-border p-3">
@@ -303,7 +352,7 @@ export default function ExamApplicationStudio({tool}:{tool:Tool}) {
           className="w-16 rounded-lg border border-border bg-background p-1.5 text-right text-sm" aria-label="Resize percentage"/>
         </div>
        </label>
-       <p className="text-xs text-muted-foreground">{originalW} × {originalH} becomes {actual.width} × {actual.height} pixels.</p>
+       <p className="text-xs text-muted-foreground">{originalW} × {originalH} becomes {actual.width} × {actual.height} pixels. Choose By Size to enter inch, centimeter or millimeter dimensions.</p>
       </>}
       {!documentMode&&<div className="space-y-2">
        <label className="block text-sm font-medium">How the image fits</label>
@@ -394,7 +443,7 @@ export default function ExamApplicationStudio({tool}:{tool:Tool}) {
        }
       </div>
       <div className="rounded-xl border border-border bg-card p-3">
-       <p className="truncate text-sm font-semibold">{documentMode?cleanName(source.file.name)+"-A4.pdf":displayName}</p>
+       <p className="truncate text-sm font-semibold">{documentMode?buildExamDownloadFilename(source.file.name,"","pdf"):displayName}</p>
        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
         <span className="rounded-lg bg-muted px-2 py-1">{originalW} × {originalH}</span>
         <span aria-hidden>→</span>
@@ -411,11 +460,18 @@ export default function ExamApplicationStudio({tool}:{tool:Tool}) {
       <div className="flex items-center gap-2">
        {output.issues.length?<AlertTriangle className="h-5 w-5 text-amber-600"/>:<CheckCircle2 className="h-5 w-5 text-green-600"/>}
        <div><p className="text-sm font-semibold">{output.issues.length?"Review size or format":"Technical checks passed"}</p>
-        <p className="text-xs text-muted-foreground">{displaySize(output.blob.size)} · {output.name}</p></div>
+        <p className="text-xs text-muted-foreground">{displaySize(output.blob.size)} · {finalDownloadName}</p></div>
       </div>
       {output.issues.map(issue=><p key={issue} className="text-xs text-amber-700">{issue}</p>)}
       <p className="text-xs text-muted-foreground">File checks do not guarantee acceptance by an application website.</p>
-      <Button onClick={()=>downloadBlob(output.blob,output.name)} className="w-full"><Download className="mr-2 h-4 w-4"/>Download image/file</Button>
+      <label className="block text-sm font-medium">Rename file <span className="text-xs font-normal text-muted-foreground">(optional)</span>
+       <input type="text" maxLength={120} value={renameBase} onChange={e=>changeRename(e.target.value)}
+        placeholder={source?buildExamDownloadFilename(source.file.name,"",output.name.endsWith(".pdf")?"pdf":extension).replace(/\.[^.]+$/,""):""}
+        aria-label="Custom download filename (optional)"
+        className="mt-2 w-full rounded-lg border border-border bg-background px-3 py-2.5"/>
+      </label>
+      <p className="break-all text-xs text-muted-foreground">Saved as: <strong>{finalDownloadName}</strong></p>
+      <Button onClick={()=>downloadBlob(output.blob,finalDownloadName)} className="w-full"><Download className="mr-2 h-4 w-4"/>Download {output.name.endsWith(".pdf")?"PDF":"Image"}</Button>
      </section>}
     </div>
    </div>

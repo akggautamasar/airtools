@@ -1,5 +1,12 @@
 # AirTools changelog
 
+## 2026-10-17 — Physical size resize & renaming
+- Added pixel/inch/centimeter/millimeter size units with configurable conversion DPI in the exam upload editor.
+- Preserve optional aspect lock and output-pixel preview while converting physical sizes.
+- Added optional rename-before-download. Without manual rename, preserve the source image basename with an -AirTools suffix and actual file extension.
+- Keep per-file category folders in generated ZIP exports so names from the same uploaded image cannot collide.
+
+
 ## 2026-10-17 — User-configured exam photo, signature and thumb resize editor
 - Removed notification-based preset selector and mandatory agency assumptions; image dimensions now initialize from the uploaded file.
 - Added image-resizer-style By Size / As Percentage tabs, aspect ratio lock, target KB, output format, fit/crop controls, live preview and before→after pixel display.

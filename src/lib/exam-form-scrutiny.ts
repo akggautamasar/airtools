@@ -1,4 +1,36 @@
-import { compareField, parseSuggestedDate } from "./consistency-radar.ts";
+/** Duplicated tiny pure helpers so Node's native test runner can load this engine
+ * without TypeScript-extension resolution conflicts in Next's tsconfig. */
+function parseSuggestedDate(input:string):string|null {
+  const raw=input.trim();
+  let y:number,m:number,d:number;
+  let match=/^(\\d{4})-(\\d{1,2})-(\\d{1,2})$/.exec(raw);
+  if(match){y=Number(match[1]);m=Number(match[2]);d=Number(match[3]);}
+  else {
+    match=/^(\\d{1,2})[\\/-](\\d{1,2})[\\/-](\\d{4})$/.exec(raw);
+    if(!match)return null;
+    d=Number(match[1]);m=Number(match[2]);y=Number(match[3]);
+  }
+  if(y<1900||y>2100||m<1||m>12||d<1||d>31)return null;
+  const date=new Date(Date.UTC(y,m-1,d));
+  if(date.getUTCFullYear()!==y||date.getUTCMonth()!==m-1||date.getUTCDate()!==d)return null;
+  return [String(y).padStart(4,"0"),String(m).padStart(2,"0"),String(d).padStart(2,"0")].join("-");
+}
+function fuzzyNameReview(a:string,b:string):boolean {
+  const wordsA=a.split(" "),wordsB=b.split(" ");
+  if(wordsA.length===wordsB.length&&wordsA.slice().sort().join(" ")===wordsB.slice().sort().join(" "))return true;
+  if(wordsA.length===wordsB.length&&wordsA.every((w,i)=>w===wordsB[i]||
+    (w.length===1&&wordsB[i].startsWith(w))||
+    (wordsB[i].length===1&&w.startsWith(wordsB[i]))))return true;
+  if(Math.abs(a.length-b.length)>2||a.length<5||b.length<5)return false;
+  let last=Array.from({length:b.length+1},(_,i)=>i);
+  for(let i=1;i<=a.length;i++){
+    const now=[i];
+    for(let j=1;j<=b.length;j++)now[j]=Math.min(now[j-1]+1,last[j]+1,last[j-1]+(a[i-1]===b[j-1]?0:1));
+    last=now;
+  }
+  return last[b.length]<=2;
+}
+
 
 export const DOC_KINDS = [
   { id:"class10", label:"Class 10 / Matriculation marksheet" },
@@ -174,13 +206,10 @@ export function compareScrutiny(form:ScrutinyRecord,documents:ScrutinyRecord[]):
       key:field.key,label:field.label,status:"match",submitted,evidence,sources,
       explanation:"Confirmed text matches after normalisation. This does not prove document authenticity or portal acceptance.",
     };
-    if(field.type==="name"){
-      const result=compareField(field.key==="dob"?"dateOfBirth":field.key==="fatherName"?"fatherName":field.key==="motherName"?"motherName":"fullName",populated[0].values[field.key],raw);
-      if(result.kind==="review"||result.kind==="formatting")return {
-        key:field.key,label:field.label,status:"review",submitted,evidence,sources,
-        explanation:result.explanation,
-      };
-    }
+    if(field.type==="name"&&fuzzyNameReview(expected[0],actual))return {
+      key:field.key,label:field.label,status:"review",submitted,evidence,sources,
+      explanation:"Similar names, initials or differing component order need human review. They are not automatically equivalent.",
+    };
     return {
       key:field.key,label:field.label,status:"mismatch",submitted,evidence,sources,
       explanation:"Confirmed application entry differs from the supporting record. Verify both originals and correct the form if necessary.",

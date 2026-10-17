@@ -15,7 +15,8 @@ const NOT_YET_AVAILABLE=[
  "DOCX rendering to JPG","Fully automatic face detection and masking",
  "Arbitrary AVIF encoding on browsers without an AVIF encoder"
 ];
-export default function ImageToolboxDirectory({tool:_tool}:{tool:Tool}) {
+export default function ImageToolboxDirectory({tool}:{tool:Tool}) {
+ void tool;
  const [search,setSearch]=useState("");
  const [onlyNew,setOnlyNew]=useState(false);
  const filter=search.trim().toLowerCase();

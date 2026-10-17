@@ -1,5 +1,6 @@
 /** Shared public contract; contains no API keys or server implementation. */
-export const PDF_EPUB_PROXY_MAX_BYTES = 4_000_000; // Leave room below Vercel's 4.5 MB request limit.
+export const PDF_EPUB_PROXY_MAX_BYTES = 4_000_000; // Legacy small-payload proxy.
+export const PDF_EPUB_DIRECT_MAX_BYTES = 18 * 1024 * 1024; // Direct browser -> Cloudflare KV (18 MiB). // Leave room below Vercel's 4.5 MB request limit.
 export const PDF_EPUB_PRESETS = ["balanced", "maximum_compression", "high_fidelity"] as const;
 export type PdfEpubPreset = typeof PDF_EPUB_PRESETS[number];
 export const PDF_EPUB_LANGUAGES = ["eng+hin", "eng", "hin"] as const;

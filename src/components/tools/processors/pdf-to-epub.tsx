@@ -7,7 +7,7 @@ import { UploadZone } from "@/components/tools/upload-zone";
 import { UploadedFile, Tool } from "@/types";
 import { downloadBlob, formatFileSize, ACCEPTED_PDF_TYPES } from "@/lib/utils";
 import { extractPdfText } from "@/lib/pdf-client";
-import { PDF_EPUB_PROXY_MAX_BYTES, PDF_EPUB_PRESETS, PDF_EPUB_LANGUAGES, normalizeJobProgress, type PdfEpubJob, type PdfEpubReport, type PdfEpubPreset, type PdfEpubLanguage } from "@/lib/pdf-epub-contract";
+import { PDF_EPUB_DIRECT_MAX_BYTES, PDF_EPUB_PRESETS, PDF_EPUB_LANGUAGES, normalizeJobProgress, type PdfEpubJob, type PdfEpubReport, type PdfEpubPreset, type PdfEpubLanguage } from "@/lib/pdf-epub-contract";
 
 const escapeXml = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -179,8 +179,8 @@ export default function PDFToEpub({ tool }: { tool: Tool }) {
   async function convertAdvanced() {
     if (!files.length || processing) return;
     const file = files[0].file;
-    if (file.size > PDF_EPUB_PROXY_MAX_BYTES) {
-      setError("Advanced conversion through AirTools currently accepts files up to 4 MB. Choose a smaller PDF or switch to the browser text-only converter.");
+    if (file.size > PDF_EPUB_DIRECT_MAX_BYTES) {
+      setError("Advanced conversion supports PDFs up to 18 MiB. Choose a smaller PDF for this free-tier service.");
       return;
     }
     if (!file.size) { setError("Choose a nonempty PDF."); return; }
@@ -188,19 +188,35 @@ export default function PDFToEpub({ tool }: { tool: Tool }) {
     reset();
     currentJobId.current = null;
     try {
-      const params = new URLSearchParams({
-        preset, ocr_languages: languages,
-        title: bookTitle.trim().slice(0, 160) || file.name.replace(/\.pdf$/i, ""),
-        author: bookAuthor.trim().slice(0, 160),
-      });
-      const response = await fetch("/api/pdf-epub?" + params.toString(), {
+      const issued = await fetch("/api/pdf-epub/ticket", {
         method: "POST",
-        headers: { "Content-Type": "application/pdf" },
-        body: file,
         credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          file_bytes: file.size, preset, ocr_languages: languages,
+          title: bookTitle.trim().slice(0, 160) || file.name.replace(/\.pdf$/i, ""),
+          author: bookAuthor.trim().slice(0, 160),
+        }),
+      });
+      if (!issued.ok) throw new Error(await readError(issued));
+      const ticket = await issued.json() as { job_id: string; upload_url: string; upload_token: string };
+      setError("");
+      // PDF bytes go straight to Cloudflare, never through Vercel.
+      // The bearer below is one-time and expires within five minutes.
+      const response = await fetch(ticket.upload_url, {
+        method: "POST",
+        mode: "cors",
+        credentials: "omit",
+        referrerPolicy: "no-referrer",
+        headers: {
+          "Authorization": "Bearer " + ticket.upload_token,
+          "Content-Type": "application/pdf",
+        },
+        body: file,
       });
       if (!response.ok) throw new Error(await readError(response));
       const first = await response.json() as PdfEpubJob;
+      if (first.job_id !== ticket.job_id) throw new Error("Conversion service returned a mismatched job ID.");
       if (!first.job_id) throw new Error("No job ID returned by conversion service.");
       currentJobId.current = first.job_id;
       setJob(first);
@@ -261,7 +277,7 @@ export default function PDFToEpub({ tool }: { tool: Tool }) {
   }
 
   const submitted = !!job;
-  const maxFile = mode === "advanced" ? PDF_EPUB_PROXY_MAX_BYTES : 18 * 1024 * 1024;
+  const maxFile = mode === "advanced" ? PDF_EPUB_DIRECT_MAX_BYTES : 18 * 1024 * 1024;
   const statusText = job?.status === "queued" ? "Waiting for an available converter…"
     : job?.status === "running" ? "Converting PDF to EPUB…"
     : job?.status === "completed" ? "Your EPUB is ready."
@@ -279,7 +295,7 @@ export default function PDFToEpub({ tool }: { tool: Tool }) {
           onClick={() => { setMode("advanced"); reset(); }}
           className={"rounded-xl border-2 p-4 text-left transition-colors " + (mode === "advanced" ? "border-primary bg-primary/5" : "border-border hover:border-primary/30")}>
           <div className="flex items-center gap-2 font-semibold"><Cloud className="h-5 w-5" />Advanced OCR & layout</div>
-          <p className="mt-1 text-xs text-muted-foreground">Uses our Cloudflare + Render converter. OCR, embedded images and conversion presets. 4 MB max via secure AirTools API.</p>
+          <p className="mt-1 text-xs text-muted-foreground">Uses our Cloudflare + Render converter. OCR, embedded images and conversion presets. Up to 18 MiB via a short-lived direct Cloudflare upload.</p>
           {serviceReady === false && <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">Currently not configured for this site</p>}
         </button>
         <button type="button" aria-pressed={mode === "browser"} disabled={processing || submitted}
@@ -292,7 +308,7 @@ export default function PDFToEpub({ tool }: { tool: Tool }) {
 
       {mode === "advanced" && (
         <p className="rounded-xl border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
-          Advanced conversion sends your PDF to our Cloudflare KV temporary storage and Render processing service. Input/output files expire after approximately 24 hours.
+          Advanced conversion sends the PDF directly from your browser to Cloudflare KV, bypassing the Vercel upload cap. It is processed by Render. Input/output files expire after approximately 24 hours.
           Free-tier compute may sleep or reach a daily quota. Images, tables, equations and two-column reading order may still need manual review.
         </p>
       )}
@@ -327,7 +343,7 @@ export default function PDFToEpub({ tool }: { tool: Tool }) {
         <UploadZone accept={ACCEPTED_PDF_TYPES} multiple={false} maxFiles={1} maxSize={maxFile}
           onFilesChange={(selected) => { setFiles(selected); reset(); }}
           title="Choose a PDF to convert to EPUB"
-          description={mode === "advanced" ? "Advanced OCR accepts PDF up to 4 MB (4,000,000 bytes) through AirTools" : "Text-only conversion supports PDF up to 18 MiB locally"} />
+          description={mode === "advanced" ? "Advanced OCR supports PDFs up to 18 MiB (18,874,368 bytes), directly to Cloudflare" : "Text-only conversion supports PDF up to 18 MiB locally"} />
       )}
 
       {files.length > 0 && !submitted && (

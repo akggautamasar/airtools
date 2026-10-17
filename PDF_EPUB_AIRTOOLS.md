@@ -37,3 +37,12 @@
 5. Open status link without job cookie (403), cancel and verify state, retry expired download.
 6. Test public endpoint through an authenticated browser and inspect resulting EPUB in an e-reader.
 
+
+## Direct upload upgrade — 18 MiB
+
+1. AirTools POSTs only file size, conversion options and its verified HTTPS site origin to `/api/pdf-epub/ticket` (Vercel).
+2. Vercel authenticates with the Cloudflare API using its private API key. The Worker creates a five-minute, single-use upload token bound to exact Origin and byte length. Vercel sets the same existing HTTP-only job cookie.
+3. The browser POSTs the actual PDF directly to the Cloudflare Worker `/v1/direct-upload`, not Vercel. The Worker consumes the token atomically, validates the PDF, applies the existing per-client quota and enqueues the job.
+4. Status, cancel, download and report remain behind Vercel's existing job-cookie/API-key bridge.
+
+**Limits:** 18 MiB (18,874,368 bytes), 12 shared jobs/day. Without the Worker migration/deployment, upload ticket requests fail and advanced conversion will be unavailable. The legacy /api/pdf-epub POST route remains capped at 4 MB for compatibility.

@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { Tool } from "@/types";
+import { IMAGE_WORKBENCH_BY_SLUG } from "@/lib/image-workbench-presets";
 import { Loader2 } from "lucide-react";
 
 const processors: Record<string, React.ComponentType<{ tool: Tool }>> = {};
@@ -35,6 +36,8 @@ const ColorExtractor = dynamic(() => import("@/components/tools/processors/color
 const GenericPDFTool = dynamic(() => import("@/components/tools/processors/generic-pdf-tool"), { loading: () => <ToolLoader /> });
 const EditPDF = dynamic(() => import("@/components/tools/processors/edit-pdf"), { ssr: false, loading: () => <ToolLoader /> });
 const OCRPDF = dynamic(() => import("@/components/tools/processors/ocr-pdf"), { loading: () => <ToolLoader /> });
+const ImageWorkbench = dynamic(() => import("@/components/tools/processors/image-workbench"), { loading: () => <ToolLoader /> });
+const ImageToolboxDirectory = dynamic(() => import("@/components/tools/processors/image-toolbox-directory"), { loading: () => <ToolLoader /> });
 const GenericImageTool = dynamic(() => import("@/components/tools/processors/generic-image-tool"), { loading: () => <ToolLoader /> });
 const PDFToImage = dynamic(() => import("@/components/tools/processors/pdf-to-image"), { loading: () => <ToolLoader /> });
 const SelectPagesPDF = dynamic(() => import("@/components/tools/processors/select-pages-pdf"), { loading: () => <ToolLoader /> });
@@ -77,6 +80,7 @@ function ToolLoader() {
 }
 
 const toolMap: Record<string, React.ComponentType<{ tool: Tool }>> = {
+  "image-toolbox": ImageToolboxDirectory,
   "compress-pdf": CompressPDF,
   "merge-pdf": MergePDF,
   "merge-pdf-image": MergePDF,
@@ -182,7 +186,8 @@ interface Props {
 
 export function DynamicToolProcessor({ tool }: Props) {
   const Processor = toolMap[tool.slug] ||
-    (tool.category === "pdf" || tool.category === "ebook" ? GenericPDFTool : GenericImageTool);
+    (IMAGE_WORKBENCH_BY_SLUG[tool.slug] ? ImageWorkbench :
+      tool.category === "pdf" || tool.category === "ebook" ? GenericPDFTool : GenericImageTool);
 
   return <Processor tool={tool} />;
 }

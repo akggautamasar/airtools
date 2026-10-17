@@ -1,4 +1,5 @@
 import { Tool } from "@/types";
+import { IMAGE_WORKBENCH_TOOLS, asImageTool } from "@/lib/image-workbench-presets";
 
 export const ALL_TOOLS: Tool[] = [
   // Exam Application Tools (not government-affiliated; notice-specific examples)
@@ -53,6 +54,10 @@ export const ALL_TOOLS: Tool[] = [
   { slug: "pdf-to-mobi", name: "PDF to MOBI", description: "Create EPUB for Send to Kindle from PDF. This tool does not generate native MOBI files.", category: "ebook", icon: "BookOpen", color: "text-purple-500", tags: ["mobi", "kindle", "convert"] },
   { slug: "pdf-to-azw3", name: "PDF to AZW3", description: "Create EPUB for Send to Kindle from PDF. This tool does not generate native AZW3 files.", category: "ebook", icon: "BookOpen", color: "text-purple-500", tags: ["azw3", "kindle", "convert"] },
 
+  // Newly implemented image-processing routes. Each has a concrete operation
+  // in ImageWorkbench; existing dedicated tools remain mapped as before.
+  { slug: "image-toolbox", name: "Image Toolbox — All Image Tools", description: "Browse a searchable directory of real image resizing, effects, conversion, exact-KB, PDF, DPI, photo and signature utilities.", category: "image", icon: "Grid3X3", color: "text-green-500", tags: ["image", "toolbox", "all tools", "edit", "convert", "compress"], popular: true, new: true },
+  ...IMAGE_WORKBENCH_TOOLS.map(asImageTool),
   // Image Tools
   { slug: "upscale-image", name: "Image Upscaler", description: "Enhance and upscale images using AI for sharper, higher-resolution results.", category: "image", icon: "Sparkles", color: "text-green-500", tags: ["upscale", "enhance", "ai", "resolution"], popular: true },
   { slug: "remove-background", name: "AI Background Remover", description: "Private, no-watermark AI cutouts, custom commercial backdrops, alpha-edge brush cleanup and original-size PNG downloads.", category: "image", icon: "Wand2", color: "text-green-500", tags: ["background", "remove", "transparent", "ai", "product"], popular: true },

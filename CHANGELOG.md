@@ -1,5 +1,12 @@
 # AirTools changelog
 
+## 2026-10-17 — Image Toolbox collection
+- Added an extensive searchable image-tools directory with categorized, working browser image operations and links to existing photo editors.
+- New parameterized image workbench: resizing and dimensions, exact KB compression attempts, PNG/JPEG/WebP/JFIF/BMP/ICO outputs, local effects, overlays, multiple-photo layout, grid splitting, 200/300/600 DPI metadata tools, and A4 PDF compression shortcuts.
+- Included category-specific variants for photo/signature/ID sizes and social media dimensions. No agency approval claims.
+- Advanced AI generation, professional inpainting, video export, full EXIF editing, and format decoding not supported by the browser are explicitly listed as future integrations; no fake working links.
+
+
 ## 2026-10-17 — Physical size resize & renaming
 - Added pixel/inch/centimeter/millimeter size units with configurable conversion DPI in the exam upload editor.
 - Preserve optional aspect lock and output-pixel preview while converting physical sizes.

@@ -1,5 +1,12 @@
 # AirTools changelog
 
+## 2026-10-17 — PDF→EPUB 100 MB chunk upload
+- Added up to 100,000,000-byte uploads with 5 MiB chunks and a progress indicator.
+- Authorized upload tickets are scoped to one file and time-limited; Vercel never receives PDF bytes.
+- Client retries individual failed chunks and can resume within the current tab using the original two-hour authorization.
+- Backend requires the matching Cloudflare D1 migration, Worker and Render updates; no increased compute allocation or guarantee of successful conversion of huge scanned books.
+
+
 ## 2026-10-17 — Advanced PDF→EPUB integration
 - Connected existing `/tools/pdf-to-epub` processor to reusable airpdftoepub Cloudflare/Render conversion API using a server-only bearer credential and HTTP-only job cookie.
 - Added preset/language choices, asynchronous job progress, cancel, report and EPUB download.

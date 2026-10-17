@@ -3,8 +3,8 @@ import { test } from "node:test";
 import { PDF_EPUB_PROXY_MAX_BYTES, PDF_EPUB_DIRECT_MAX_BYTES, PDF_EPUB_ID_REGEX, validatePdfEpubSettings, isPdfHeader, normalizeJobProgress } from "../src/lib/pdf-epub-contract.ts";
 
 test("direct PDF upload bypasses Vercel and supports 18 MiB", () => {
-  assert.equal(PDF_EPUB_DIRECT_MAX_BYTES, 18 * 1024 * 1024);
-  assert.ok(PDF_EPUB_DIRECT_MAX_BYTES > 18_000_000);
+  assert.equal(PDF_EPUB_DIRECT_MAX_BYTES, 100_000_000);
+  assert.ok(PDF_EPUB_DIRECT_MAX_BYTES >= 100_000_000);
 });
 test("legacy proxy upload remains below Vercel request limit", () => {
   assert.ok(PDF_EPUB_PROXY_MAX_BYTES < 4_500_000);

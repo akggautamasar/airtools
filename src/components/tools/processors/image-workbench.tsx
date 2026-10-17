@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
- AlertTriangle, CheckCircle2, Download, FileImage, Image as ImageIcon,
+ AlertTriangle, CheckCircle2, Download, Image as ImageIcon,
  Info, Package, Plus, RotateCcw, Trash2, UploadCloud
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -73,9 +73,9 @@ function Workbench({tool,preset}:{tool:Tool;preset:ImageWorkbenchPreset}){
  const [error,setError]=useState("");
  const [results,setResults]=useState<ExportResult[]>([]);
  const [customName,setCustomName]=useState("");
- const [showLimits,setShowLimits]=useState(false);
  const canvasRef=useRef<HTMLCanvasElement>(null);
  const previewRun=useRef(0);
+ const previewUrlsRef=useRef<string[]>([]);
  const fileInput=useRef<HTMLInputElement>(null);
  const sourceFile=files[selected];
  const mode=preset.mode;
@@ -90,13 +90,15 @@ function Workbench({tool,preset}:{tool:Tool;preset:ImageWorkbenchPreset}){
   const next=[...files,...accepted].slice(0,12);
   if(!next.length){setError("Choose JPG, PNG, WebP, BMP or a browser-supported AVIF image.");return;}
   if(next.some(f=>f.size>20*1024*1024)){setError("Each image must be at most 20 MiB.");return;}
+  previewUrlsRef.current.forEach(url=>URL.revokeObjectURL(url));
+  const urls=next.map(f=>URL.createObjectURL(f));
+  previewUrlsRef.current=urls;setPreviewUrls(urls);
   setFiles(next);setSelected(0);setResults([]);setError("");setMessage("");
   if(fileInput.current)fileInput.current.value="";
  };
- useEffect(()=>{
-  const urls=files.map(f=>URL.createObjectURL(f));setPreviewUrls(urls);
-  return()=>urls.forEach(url=>URL.revokeObjectURL(url));
- },[files]);
+ useEffect(()=>()=>{
+  previewUrlsRef.current.forEach(url=>URL.revokeObjectURL(url));
+ },[]);
  useEffect(()=>{
   let cancelled=false;
   if(!sourceFile)return;
@@ -260,6 +262,8 @@ function Workbench({tool,preset}:{tool:Tool;preset:ImageWorkbenchPreset}){
       multiple={multiple} className="sr-only" onChange={e=>updateFiles(e.target.files)}/>
     </label>
     {ready&&<button type="button" className="inline-flex items-center gap-1 text-xs text-muted-foreground" onClick={()=>{
+      previewUrlsRef.current.forEach(url=>URL.revokeObjectURL(url));
+      previewUrlsRef.current=[];setPreviewUrls([]);
       setFiles([]);setResults([]);setSelected(0);setSourceDpi(null);
     }}><Trash2 className="h-4 w-4"/>Clear files</button>}
     <span className="text-xs text-muted-foreground">{files.length} image(s) selected</span>

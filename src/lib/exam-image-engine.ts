@@ -66,10 +66,6 @@ export async function sizeTargetExport(canvas:HTMLCanvasElement,format:ExamImage
  }
  // Highest acceptable quality wins, so tiny file targets preserve as much detail
  // as possible. Exact KB cannot be promised by browser encoders at fixed pixels.
- if(format==="png") {
-   const blob=await canvasAsBlob(canvas,"png");
-   return {blob,quality:null as number|null,inRange:blob.size>=lower&&blob.size<=upper};
- }
  let nearest:Blob|null=null,nearestQuality=0,nearestDistance=Number.POSITIVE_INFINITY;
  for(let i=0;i<=27;i++){
    const quality=Math.max(.055,.99-i*.035);

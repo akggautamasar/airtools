@@ -79,13 +79,16 @@ async function selectablePdf(file:File):Promise<{text:string;note:string}>{
     for(let pageNum=1;pageNum<=count;pageNum++){
       const page=await pdf.getPage(pageNum);
       const t=await page.getTextContent();
-      let lastY:number|null=null,row="";
+      let lastY:number|null=null,row="",lastRight:number|null=null;
       for(const item of t.items){
         if(!("str" in item))continue;
         const y=item.transform?.[5]??0;
-        if(lastY!==null&&Math.abs(y-lastY)>2){if(row)lines.push(row);row="";}
-        row+=(row?" ":"")+item.str;
+        const x=item.transform?.[4]??0;
+        if(lastY!==null&&Math.abs(y-lastY)>2){if(row)lines.push(row);row="";lastRight=null;}
+        const gap=lastRight===null?0:x-lastRight;
+        row+=(row?(gap>12?"    ":" "):"")+item.str;
         lastY=y;
+        lastRight=x+(item.width||0);
       }
       if(row)lines.push(row);
       page.cleanup();

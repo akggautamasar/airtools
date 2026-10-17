@@ -59,6 +59,7 @@ const CropImage = dynamic(() => import("@/components/tools/processors/crop-image
 const CropCircleImage = dynamic(() => import("@/components/tools/processors/crop-circle-image"), { loading: () => <ToolLoader /> });
 const ImageMerge = dynamic(() => import("@/components/tools/processors/image-merge"), { loading: () => <ToolLoader /> });
 const ExamApplicationStudio = dynamic(() => import("@/components/tools/processors/exam-application-studio"), { loading: () => <ToolLoader /> });
+const ExamFormScrutiny = dynamic(() => import("@/components/tools/processors/exam-form-scrutiny"), { loading: () => <ToolLoader /> });
 const ThumbPhotoInkStudio = dynamic(() => import("@/components/tools/processors/thumb-photo-ink-studio"), { loading: () => <ToolLoader /> });
 const GifMaker = dynamic(() => import("@/components/tools/processors/gif-maker"), { loading: () => <ToolLoader /> });
 const GifToImages = dynamic(() => import("@/components/tools/processors/gif-to-images"), { loading: () => <ToolLoader /> });
@@ -143,6 +144,7 @@ const toolMap: Record<string, React.ComponentType<{ tool: Tool }>> = {
   "image-merge": ImageMerge,
   "photo-signature-resize": ExamApplicationStudio,
   "exam-application-studio": ExamApplicationStudio,
+  "exam-form-scrutiny": ExamFormScrutiny,
   "exam-photo-resizer": ExamApplicationStudio,
   "exam-signature-maker": ExamApplicationStudio,
   "exam-thumb-impression": ExamApplicationStudio,

@@ -59,7 +59,12 @@ function safeHtmlToLines(source:string):string{
     else if(el instanceof HTMLSelectElement)value=el.selectedOptions?.[0]?.text||el.value||"";
     if(title && value && title.length<120 && value.length<150)pairs.push(title+": "+value);
   });
-  const text=doc.body?.innerText||doc.body?.textContent||"";
+  // HTML textContent alone concatenates adjacent cells. Keep candidate row breaks
+  // from table and block elements, but never mount or execute the saved page.
+  const fragments=[...doc.body?.querySelectorAll("tr,p,li,div,section,article,dt,dd")||[]]
+    .map(node=>(node.textContent||"").replace(/\\s+/g," ").trim())
+    .filter(value=>value.length>0&&value.length<230).slice(0,2000);
+  const text=[...fragments,doc.body?.innerText||doc.body?.textContent||""].join("\\n");
   // Saved HTML with scripts populating the form at runtime may contain NO filled values.
   const lines=text.replace(/\r/g,"").replace(/\t/g," ").replace(/[ ]{3,}/g,"  ");
   return [...pairs,lines].join("\n").slice(0,MAX_TEXT);

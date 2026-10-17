@@ -141,7 +141,7 @@ export default function ExamApplicationStudio({tool}:{tool:Tool}){
    }else{
      const canvas=renderExamImage(source.img,{width:spec.width,height:spec.height,kind,zoom,x,y,paperCleanup:clean,inset});
      const result=await sizeTargetExport(canvas,spec.format,spec.minKB,spec.maxKB);
-     const outcome=validateExamOutput(result.blob.size,canvas.width,canvas.height,spec,"image/"+spec.format);
+     const outcome=validateExamOutput(result.blob.size,canvas.width,canvas.height,spec,result.blob.type);
      const name=examOutputName(kind,spec.format);
      const out={name,blob:result.blob,issues:outcome.issues};
      setOutput(out);setAnalysis(analyzeExamCanvas(canvas,kind));

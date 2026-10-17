@@ -297,7 +297,7 @@ export default function ExamFormScrutiny({tool}:{tool:Tool}){
         <p className="text-xs text-muted-foreground">{form.note}</p>
         {form.busy?<span className="flex items-center gap-1 text-xs"><Loader2 className="h-4 w-4 animate-spin"/>Reading…</span>:
           <Button size="sm" variant="outline" onClick={()=>{void runOcr(form);}}>Read preview via OCR (optional for scanned PDF/image)</Button>}
-        {!form.busy&&{renderFieldEditor(form)}}
+        {!form.busy&&renderFieldEditor(form)}
       </div>}
     </section>
     <section className="space-y-3 rounded-2xl border border-border bg-card p-4 sm:p-5">
@@ -321,7 +321,7 @@ export default function ExamFormScrutiny({tool}:{tool:Tool}){
             <Button size="sm" variant="outline" disabled={doc.busy} onClick={()=>{void runOcr(doc);}}>Read image/PDF via OCR</Button>
             <Button size="sm" variant="outline" onClick={()=>{setDocuments(old=>old.filter(x=>x.id!==doc.id));setResults(null);}}>Remove record</Button>
           </div>
-          {!doc.busy&&{renderFieldEditor(doc)}}
+          {!doc.busy&&renderFieldEditor(doc)}
         </div>
       </details>)}
       {!docs.length&&<p className="text-xs text-muted-foreground">No certificates uploaded. All document-based checks will be reported as Not checked.</p>}

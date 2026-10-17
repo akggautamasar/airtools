@@ -2,15 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  AlertTriangle, CheckCircle2, ChevronDown, Download, FileImage, Fingerprint,
-  Image as ImageIcon, Info, LockKeyhole, Package, PenLine, RotateCcw,
-  ScrollText, Trash2, UploadCloud, XCircle
+  AlertTriangle, CheckCircle2, ChevronDown, Download, FileImage,
+  Image as ImageIcon, Info, LockKeyhole, Package, RotateCcw,
+  Trash2, UploadCloud, XCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { downloadBlob, formatFileSize } from "@/lib/utils";
 import type { Tool } from "@/types";
 import {
-  clampExamDimension, dimensionFromOther, examOutputName, percentDimensions,
+  clampExamDimension, dimensionFromOther, percentDimensions,
   UPLOAD_KINDS, validateExamOutput,
   type ExamAssetKind, type ExamFitMode, type ExamImageFormat
 } from "@/lib/exam-upload-specs";
@@ -141,8 +141,8 @@ export default function ExamApplicationStudio({tool}:{tool:Tool}) {
   try{
    const image=await loadExamImage(file);
    setSource({file,image});
-   setWidth(clampExamDimension(image.naturalWidth));
-   setHeight(clampExamDimension(image.naturalHeight));
+   const dims=percentDimensions(image.naturalWidth,image.naturalHeight,100);
+   setWidth(dims.width);setHeight(dims.height);
    resetEditor();
   }catch(e){setError(e instanceof Error?e.message:"Could not load the image");}
   finally{setBusy(false);}
@@ -180,7 +180,8 @@ export default function ExamApplicationStudio({tool}:{tool:Tool}) {
   return()=>window.cancelAnimationFrame(raf);
  },[source,actual.width,actual.height,kind,fit,zoom,offsetX,offsetY,paperCleanup,documentMode]);
  function handleReset(){
-  setWidth(clampExamDimension(originalW));setHeight(clampExamDimension(originalH));resetEditor();
+  const dims=percentDimensions(originalW,originalH,100);
+  setWidth(dims.width);setHeight(dims.height);resetEditor();
  }
  async function generate(){
   if(!source||busy)return;

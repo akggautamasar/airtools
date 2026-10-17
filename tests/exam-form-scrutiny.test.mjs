@@ -77,6 +77,6 @@ test("classification uses filename heuristics, unknown goes other",()=>{
 test("parse invalid/missing dates as unchecked or review rather than false positive",()=>{
  const f=make("form",{dob:"32/13/2000"});
  const d=make("class10",{dob:"2000-01-01"});
- assert.equal(compareScrutiny(f,[d]).find(x=>x.key==="dob").status,"mismatch");
+ assert.equal(compareScrutiny(f,[d]).find(x=>x.key==="dob").status,"review");
  assert.equal(suggestScrutinyValues("Date of Birth : 31/02/2000").dob,"");
 });

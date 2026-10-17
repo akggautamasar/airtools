@@ -1,5 +1,15 @@
 # AirTools changelog
 
+## 2026-10-17 — Advanced PDF→EPUB integration
+- Connected existing `/tools/pdf-to-epub` processor to reusable airpdftoepub Cloudflare/Render conversion API using a server-only bearer credential and HTTP-only job cookie.
+- Added preset/language choices, asynchronous job progress, cancel, report and EPUB download.
+- Kept in-browser text-only EPUB processing and accurate Kindle label notices.
+- Advanced uploads are limited to 4,000,000 bytes because of Vercel request limits. Larger books should use the standalone converter; this is not high-volume hosting.
+- Advanced PDFs leave the device and are temporarily stored in Cloudflare KV for approximately 24 hours. Basic processing stays local.
+- Conversion service health, background workers and file fidelity must be tested separately with representative files.
+
+
+
 ## 2026-10-16 — PDF Studio enhancement (feature review)
 - Upgraded existing `edit-pdf` Konva editor instead of replacing its annotation processor.
 - Added page thumbnails, navigation, reorder/remove/reset, selectable-text search, responsive zoom and fit-width.

@@ -40,9 +40,9 @@ export const ALL_TOOLS: Tool[] = [
   { slug: "epub-to-pdf", name: "EPUB to PDF", description: "Convert EPUB eBooks to PDF format while preserving formatting.", category: "ebook", icon: "BookOpen", color: "text-purple-500", tags: ["epub", "convert", "pdf"] },
   { slug: "mobi-to-pdf", name: "MOBI to PDF", description: "Convert MOBI Kindle files to PDF format for any device.", category: "ebook", icon: "BookOpen", color: "text-purple-500", tags: ["mobi", "kindle", "convert"] },
   { slug: "azw-to-pdf", name: "AZW to PDF", description: "Convert Amazon Kindle AZW files to PDF documents.", category: "ebook", icon: "BookOpen", color: "text-purple-500", tags: ["azw", "kindle", "convert"] },
-  { slug: "pdf-to-epub", name: "PDF to EPUB", description: "Extract selectable PDF text to a reflowable EPUB; complex layout may be lost.", category: "ebook", icon: "BookOpen", color: "text-purple-500", tags: ["epub", "ebook", "convert"] },
-  { slug: "pdf-to-mobi", name: "PDF to MOBI", description: "Convert PDF files to MOBI format compatible with Kindle devices.", category: "ebook", icon: "BookOpen", color: "text-purple-500", tags: ["mobi", "kindle", "convert"] },
-  { slug: "pdf-to-azw3", name: "PDF to AZW3", description: "Convert PDF files to AZW3 format for modern Kindle devices.", category: "ebook", icon: "BookOpen", color: "text-purple-500", tags: ["azw3", "kindle", "convert"] },
+  { slug: "pdf-to-epub", name: "PDF to EPUB", description: "Convert PDF to EPUB with optional English/Hindi OCR and image-aware cloud processing, or use private text-only browser conversion.", category: "ebook", icon: "BookOpen", color: "text-purple-500", tags: ["epub", "ebook", "convert"] },
+  { slug: "pdf-to-mobi", name: "PDF to MOBI", description: "Create EPUB for Send to Kindle from PDF. This tool does not generate native MOBI files.", category: "ebook", icon: "BookOpen", color: "text-purple-500", tags: ["mobi", "kindle", "convert"] },
+  { slug: "pdf-to-azw3", name: "PDF to AZW3", description: "Create EPUB for Send to Kindle from PDF. This tool does not generate native AZW3 files.", category: "ebook", icon: "BookOpen", color: "text-purple-500", tags: ["azw3", "kindle", "convert"] },
 
   // Image Tools
   { slug: "upscale-image", name: "Image Upscaler", description: "Enhance and upscale images using AI for sharper, higher-resolution results.", category: "image", icon: "Sparkles", color: "text-green-500", tags: ["upscale", "enhance", "ai", "resolution"], popular: true },

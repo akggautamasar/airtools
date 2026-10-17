@@ -1,5 +1,13 @@
 # AirTools changelog
 
+## 2026-10-17 — Bare thumb photo ink styling
+- Added a local-only, experimental bare-thumb photo enhancement tool to Image Tools and Exam Tools.
+- Added black, blue and grayscale ink appearance, manual pan/zoom crop, adaptive local contrast, editable output pixels, optional KB cap and file renaming.
+- Kept the genuine thumb-impression resizer unchanged and added a contextual link from the exam editor.
+- The algorithm never recreates missing fingerprint ridges. Phone photos are not genuine biometric captures, and the preview is not certified for official forms.
+- Added tests for black/blue pixels, blank-image non-generation, crop bounds and dimensions.
+
+
 ## 2026-10-17 — Image Toolbox collection
 - Added an extensive searchable image-tools directory with categorized, working browser image operations and links to existing photo editors.
 - New parameterized image workbench: resizing and dimensions, exact KB compression attempts, PNG/JPEG/WebP/JFIF/BMP/ICO outputs, local effects, overlays, multiple-photo layout, grid splitting, 200/300/600 DPI metadata tools, and A4 PDF compression shortcuts.

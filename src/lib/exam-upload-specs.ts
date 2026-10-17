@@ -20,7 +20,11 @@ export function dimensionFromOther(value:number,originalOther:number,originalCha
 export function percentDimensions(originalWidth:number,originalHeight:number,percent:number){
  if(!Number.isInteger(originalWidth)||!Number.isInteger(originalHeight)||originalWidth<1||originalHeight<1||!Number.isFinite(percent)||percent<=0)
   throw Error("Invalid image dimensions or percentage");
- return {width:clampExamDimension(Math.round(originalWidth*percent/100)),height:clampExamDimension(Math.round(originalHeight*percent/100))};
+ const requestedWidth=Math.max(1,originalWidth*percent/100),requestedHeight=Math.max(1,originalHeight*percent/100);
+ // Scale uniformly when exceeding browser canvas bounds; never silently
+ // break the source aspect ratio by clamping the two axes independently.
+ const factor=Math.min(1,4000/Math.max(requestedWidth,requestedHeight),Math.sqrt(16_000_000/(requestedWidth*requestedHeight)));
+ return {width:clampExamDimension(Math.round(requestedWidth*factor)),height:clampExamDimension(Math.round(requestedHeight*factor))};
 }
 export function deriveExamCrop(w:number,h:number,targetW:number,targetH:number,zoom:number,x:number,y:number) {
  if([w,h,targetW,targetH,zoom,x,y].some(n=>!Number.isFinite(n))||w<=0||h<=0||targetW<=0||targetH<=0||zoom<1||zoom>4||x<0||x>1||y<0||y>1)

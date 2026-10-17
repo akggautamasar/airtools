@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import {
   AlertTriangle, CheckCircle2, ChevronDown, Download, FileImage,
   Image as ImageIcon, Info, LockKeyhole, Package, RotateCcw,
@@ -275,6 +276,13 @@ export default function ExamApplicationStudio({tool}:{tool:Tool}) {
     {item.label}
    </button>)}
   </div>
+
+  {kind==="thumb"&&<p className="rounded-xl border border-border bg-card p-3 text-sm">
+   Have a photo of a bare thumb instead of an ink impression? Try the{" "}
+   <Link href="/tools/exam-thumb-photo-ink" className="font-semibold text-primary underline">
+    Black / Blue Ink Thumb Photo Tool
+   </Link>. It is experimental and cannot create an authentic impression from missing ridge detail.
+  </p>}
 
   <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
    <div className="flex flex-wrap items-center gap-3 border-b border-border p-3">

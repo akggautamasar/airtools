@@ -118,12 +118,15 @@ export default function ExamApplicationStudio({tool}:{tool:Tool}){
  };
  useEffect(()=>{
   if(!source||!preview.current||!Number.isFinite(spec.width)||!Number.isFinite(spec.height)||spec.width<20||spec.height<20)return;
+  let frame=0;
   try{
    const canvas=renderExamImage(source.img,{width:clampExamDimension(spec.width),height:clampExamDimension(spec.height),
     kind,zoom,x,y,paperCleanup:clean,inset});
    makePreview(canvas,preview.current);
-   setAnalysis(analyzeExamCanvas(canvas,kind));
+   const result=analyzeExamCanvas(canvas,kind);
+   frame=window.requestAnimationFrame(()=>setAnalysis(result));
   }catch{ /* Invalid in-progress dimensions; export validation reports detail. */ }
+  return ()=>window.cancelAnimationFrame(frame);
  },[source,spec.width,spec.height,kind,zoom,x,y,clean,inset]);
  async function createOutput(){
   if(!source||busy)return;

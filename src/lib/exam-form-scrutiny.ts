@@ -125,9 +125,7 @@ export function normalizeScrutinyValue(field:FieldSpec,value:string):string {
 /** Conservative label-led extraction. Never guess a name from an unrelated paragraph. */
 export function suggestScrutinyValues(text:string):Values {
   const found=blankScrutinyValues();
-  // Indian bilingual portal previews commonly place Hindi labels and English
-  // values in alternating PDF table cells. Parse those cells before the
-  // conservative English label matcher; never infer fields from prose.
+  // Bilingual application tables: only trust explicitly labelled cells.
   const hindiAliases: Record<string, RegExp[]> = {
     fullName:[/^आवेदक\s*का\s*नाम$/u,/^अभ्यर्थी\s*का\s*नाम$/u],
     fatherName:[/^पिता\s*\/\s*पति\s*का\s*नाम$/u,/^पिता\s*का\s*नाम$/u],
@@ -142,8 +140,6 @@ export function suggestScrutinyValues(text:string):Values {
   };
   const pdfLines=text.slice(0,100_000).split(/\r?\n/);
   for(const line of pdfLines){
-    // pdf.js produces space-separated table cells, while browser print-to-PDF
-    // often preserves multiple spaces. Require distinct labelled cells.
     const cells=line.trim().split(/\s{2,}|\t+/).map(x=>x.trim()).filter(Boolean);
     for(let i=0;i<cells.length-1;i++){
       for(const [key,aliases] of Object.entries(hindiAliases)){
@@ -164,8 +160,7 @@ export function suggestScrutinyValues(text:string):Values {
           else if(/\bEWS\b/iu.test(value))value="EWS";
           else value="";
         }
-        if(key==="mobile" && /[*xX]/.test(value))value="";
-        if(key==="email" && /[*xX]/.test(value))value="";
+        if((key==="mobile"||key==="email") && /[*xX]/.test(value))value="";
         if(value && value.length<=105 && !/[\n\r]/.test(value))found[key]=value;
       }
     }

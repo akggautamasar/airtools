@@ -201,7 +201,7 @@ function PhotoStudio({ tool: _tool }: { tool: Tool }) {
         <div className="flex min-h-72 items-center justify-center rounded-xl bg-muted/40 p-3">
           <canvas ref={preview} className="max-w-full rounded shadow-md" style={{maxHeight:380}} aria-label="Passport crop preview"/>
         </div>
-        <p className="text-xs text-muted-foreground">The guide lines are not included in downloads. Face size must be checked against your issuing authority's actual requirements.</p>
+        <p className="text-xs text-muted-foreground">The guide lines are not included in downloads. Face size must be checked against the issuing authority’s actual requirements.</p>
         <div className="grid grid-cols-2 gap-3">
           <label className="text-sm">Image export
             <select value={format} onChange={e=>setFormat(e.target.value as "jpeg"|"png")} className="mt-1 w-full rounded-lg border border-border bg-background p-2">

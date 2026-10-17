@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   UPLOAD_KINDS, clampExamDimension, dimensionFromOther, percentDimensions,
-  deriveExamCrop, validateExamOutput, examOutputName
+  deriveExamCrop, validateExamOutput, examOutputName,
+  physicalToPixels, pixelsToPhysical, formatDimensionValue,
+  validateExamDpi, buildExamDownloadFilename
 } from "../src/lib/exam-upload-specs.ts";
 
 test("file types are generic, not tied to an exam notification",()=>{
@@ -37,3 +39,31 @@ test("byte validation uses optional KiB limits and actual MIME",()=>{
  assert.equal(validateExamOutput(20*1024,140,60,{width:140,height:60,format:"jpeg"},"image/jpeg").passed,true);
 });
 test("names",()=>assert.equal(examOutputName("thumb","jpeg"),"airtools-thumb.jpg"));
+
+test("inches, centimetres and millimetres become exact pixels at supplied DPI",()=>{
+ assert.equal(physicalToPixels(2,"in",300),600);
+ assert.equal(physicalToPixels(2.54,"cm",300),300);
+ assert.equal(physicalToPixels(25.4,"mm",300),300);
+ assert.equal(physicalToPixels(35,"mm",300),413);
+ assert.equal(physicalToPixels(170,"px",300),170);
+ assert.ok(Math.abs(pixelsToPhysical(413,"mm",300)-34.9673)<.005);
+ assert.equal(formatDimensionValue(300,"in",300),1);
+ assert.equal(formatDimensionValue(300,"cm",300),2.54);
+ assert.equal(formatDimensionValue(300,"mm",300),25.4);
+});
+test("DPI changes physical-to-pixel conversion, not pixel values",()=>{
+ assert.equal(physicalToPixels(1,"in",72),72);
+ assert.equal(physicalToPixels(1,"in",600),600);
+ assert.equal(physicalToPixels(600,"px",72),600);
+ assert.throws(()=>validateExamDpi(0));
+ assert.throws(()=>validateExamDpi(1600));
+ assert.throws(()=>physicalToPixels(-1,"cm",300));
+});
+test("default name preserves uploaded basename, adds AirTools, and respects final extension",()=>{
+ assert.equal(buildExamDownloadFilename("My Portrait (1).JPG","","jpg"),"My Portrait (1)-AirTools.jpg");
+ assert.equal(buildExamDownloadFilename("handwritten-signature.png","","png"),"handwritten-signature-AirTools.png");
+ assert.equal(buildExamDownloadFilename("PI7-413x531_11ron-10.jpg","","webp"),"PI7-413x531_11ron-10-AirTools.webp");
+ assert.equal(buildExamDownloadFilename("photo.jpg","Application Photo.png","jpg"),"Application Photo.jpg");
+ assert.equal(buildExamDownloadFilename("photo.jpg","../my/new:name","jpg"),"..-my-new-name.jpg");
+ assert.equal(buildExamDownloadFilename("photo.jpg","  ","jpg"),"photo-AirTools.jpg");
+});

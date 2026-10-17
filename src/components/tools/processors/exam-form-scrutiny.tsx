@@ -189,7 +189,7 @@ export default function ExamFormScrutiny({tool}:{tool:Tool}){
     setDocuments(old=>old.map(d=>d.id===id?{...d,...update}:d));
   }
   function changeField(record:BrowserRecord,key:string,value:string){
-    const next={...record.values,[key]:key==="aadhaarLast4"?safeValue(key,value):value.slice(0,130)};
+    const next={...record.values,[key]:key==="aadhaarLast4"?value.replace(/\D/g,"").slice(-4):value.slice(0,130)};
     updateRecord(record.id,{values:next,confirmed:false});
   }
   async function process(record:BrowserRecord){
@@ -259,11 +259,12 @@ export default function ExamFormScrutiny({tool}:{tool:Tool}){
     downloadBlob(new Blob([body],{type:kind==="txt"?"text/plain;charset=utf-8":"application/json"}),`AirTools-Form-Scrutiny-${redacted?"redacted":"details"}.${kind}`);
   }
   function renderFieldEditor(record:BrowserRecord){
+    const relevantFields=record.kind==="form"?SCRUTINY_FIELDS:SCRUTINY_FIELDS.filter(f=>f.sources.includes(record.kind as DocKind));
     return <div className="space-y-3">
       <p className="text-xs text-muted-foreground">Only labelled fields are suggested. Check every suggestion against the actual record; edit values as needed.
        Blank fields are never treated as matches.</p>
       <div className="grid gap-3 sm:grid-cols-2">
-        {SCRUTINY_FIELDS.map(field=><label key={field.key} className="min-w-0 text-xs">
+        {relevantFields.map(field=><label key={field.key} className="min-w-0 text-xs">
           <span className="mb-1 block font-medium">{field.label}</span>
           <input className={inputStyle} type="text" value={record.values[field.key]||""} autoComplete="off"
             placeholder={field.type==="date"?"DD/MM/YYYY or YYYY-MM-DD":field.key==="aadhaarLast4"?"Only last 4 digits": "Not found — enter if present"}

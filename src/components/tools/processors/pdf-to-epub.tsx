@@ -124,6 +124,25 @@ export default function PDFToEpub({ tool }: { tool: Tool }) {
       .catch(() => {
         if (active.current) { setServiceReady(false); setMode("browser"); }
       });
+    // A securely signed, HttpOnly job cookie survives a refresh. Recover the job
+    // without exposing backend API credentials or forcing another PDF upload.
+    fetch("/api/pdf-epub/current", { cache: "no-store", signal: controller.signal })
+      .then((response) => response.ok ? response.json() : null)
+      .then((restored: PdfEpubJob | null) => {
+        if (!active.current || !restored?.job_id) return;
+        currentJobId.current = restored.job_id;
+        setJob(restored);
+        setMode("advanced");
+        if (restored.status === "completed") void fetchReport(restored.job_id);
+        if (["queued", "running"].includes(restored.status)) {
+          setProcessing(true);
+          void pollJob(restored.job_id).catch((e) => {
+            if (active.current) setError(e instanceof Error ? e.message : "Could not resume job status.");
+          }).finally(() => {
+            if (active.current) setProcessing(false);
+          });
+        }
+      }).catch(() => { /* Expired or unavailable cookie: regular upload UI remains functional. */ });
     return () => { active.current = false; controller.abort(); };
   }, []);
 

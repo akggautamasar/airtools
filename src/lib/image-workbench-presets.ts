@@ -144,6 +144,7 @@ export const IMAGE_TOOLBOX_GROUPS: ImageWorkbenchGroup[]=[
 export const EXISTING_IMAGE_TOOLBOX_LINKS: {slug:string;name:string;group:ImageWorkbenchGroup}[] = [
   {slug:"passport-photo-maker",name:"Passport & ID Photo Maker",group:"Popular"},
   {slug:"exam-application-studio",name:"Exam Photo & Signature Resizer",group:"Popular"},
+  {slug:"thumb-photo-to-ink",name:"Thumb Photo to Black / Blue Ink (Experimental)",group:"Popular"},
   {slug:"remove-background",name:"AI Background Remover",group:"Popular"},
   {slug:"background-studio",name:"Studio Backdrops",group:"Basic editing"},
   {slug:"crop-image",name:"Crop Image",group:"Basic editing"},
@@ -158,6 +159,7 @@ export const EXISTING_IMAGE_TOOLBOX_LINKS: {slug:string;name:string;group:ImageW
   {slug:"upscale-image",name:"AI Image Upscaler",group:"DPI & quality"},
   {slug:"passport-photo-maker",name:"Passport Photo Maker",group:"Exam & ID sizes"},
   {slug:"photo-print-sheet",name:"Passport Photo Print Sheets",group:"Exam & ID sizes"},
+  {slug:"exam-thumb-photo-ink",name:"Bare Thumb Photo Ink Tool for Exams",group:"Exam & ID sizes"},
   {slug:"gif-maker",name:"GIF Maker",group:"Popular"},
   {slug:"gif-to-images",name:"GIF to Images",group:"Formats"},
   {slug:"image-to-pdf",name:"Images to PDF",group:"Image to PDF"},

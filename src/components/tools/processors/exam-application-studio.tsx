@@ -1,291 +1,452 @@
 "use client";
+
 import { useEffect, useRef, useState } from "react";
-import { AlertTriangle, CheckCircle2, Download, FileCheck2, FileImage, PenLine, Fingerprint, ScrollText, FileText, ShieldCheck, RotateCcw, Package, XCircle } from "lucide-react";
+import {
+  AlertTriangle, CheckCircle2, ChevronDown, Download, FileImage, Fingerprint,
+  Image as ImageIcon, Info, LockKeyhole, Package, PenLine, RotateCcw,
+  ScrollText, Trash2, UploadCloud, XCircle
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { downloadBlob, formatFileSize } from "@/lib/utils";
 import type { Tool } from "@/types";
 import {
- EXAM_UPLOAD_PRESETS,clampExamDimension,examOutputName,validateExamOutput,
- type ExamAssetKind,type ExamImageFormat,type ExamUploadPreset
+  clampExamDimension, dimensionFromOther, examOutputName, percentDimensions,
+  UPLOAD_KINDS, validateExamOutput,
+  type ExamAssetKind, type ExamFitMode, type ExamImageFormat
 } from "@/lib/exam-upload-specs";
-import { loadExamImage,renderExamImage,sizeTargetExport,analyzeExamCanvas,canvasAsBlob,type ExamImageAnalysis } from "@/lib/exam-image-engine";
+import {
+  analyzeExamCanvas, canvasAsBlob, loadExamImage, renderExamImage, sizeTargetExport,
+  type ExamImageAnalysis
+} from "@/lib/exam-image-engine";
 
-type KitFile = {kind:ExamAssetKind;name:string;blob:Blob;status:"pass"|"review"};
-type Guide = {good:string[];bad:string[]};
-const GUIDES:Record<ExamAssetKind,Guide>={
- photo:{good:["Recent unaltered, front-facing photograph","Full head, face and shoulders visible","Even lighting; plain backdrop if required","Original camera capture when live upload is required"],
- bad:["Blur, excessive shadow, sideways face","Hat, mask, dark glasses, blocked forehead","Beauty filters, AI face/background edits if prohibited","Cropped scalp or chin; other people visible"]},
- signature:{good:["Applicant's own running handwritten signature","Complete strokes with padding around edges","Ink color, paper and size match the notice","Readable after reduction to upload size"],
- bad:["Typed font or pasted/drawn imitation","BLOCK CAPITAL letters where prohibited","Truncated or overly faint strokes","Thumb impression or someone else's signature"]},
- thumb:{good:["Actual required LEFT or RIGHT thumb","Full impression with visible ridge details","Ink color and white paper as required","Not smudged; centered within canvas"],
- bad:["Wrong hand or finger","Cut-off impression or smeared ridges","Faint print, stains or printed image","Wrong background color"]},
- declaration:{good:["Exact words from the live application notice","Own handwriting with required case and ink","All lines visible and readable","Correct orientation and size"],
- bad:["Typed/generated text instead of handwriting","Incorrect wording or spelling","ALL CAPS where forbidden","Missing lines, smudges or crop"]},
- document:{good:["All corners visible; complete original document","Sharp and readable text/seal/date","Correct page orientation and file type","File size within the specific notice limit"],
- bad:["Cut-off certificate number or signatures","Blurred, overexposed or unreadable scan","Wrong certificate, expired or mismatched details","Composited or altered document content"]}
+type Output = {blob:Blob;name:string;issues:string[];width:number;height:number};
+type KitItem = {kind:ExamAssetKind;blob:Blob;name:string;issues:string[]};
+type ResizeMode = "size" | "percent";
+type FormatChoice = "original" | ExamImageFormat;
+const GUIDE:Record<ExamAssetKind,{good:string[];bad:string[]}>={
+ photo:{
+  good:["Head and face clearly visible","Even light and suitable plain background","Correct crop and natural, unaltered appearance"],
+  bad:["Blur, shadow or excessive filters","Cut-off head, chin or shoulders","An uploaded file when the portal requires a live capture"]
+ },
+ signature:{
+  good:["Real handwritten running signature","Full strokes visible with some space around edges","Ink clearly distinguishable from paper"],
+  bad:["Cropped, faint or smudged signature","Block letters where not permitted","Typed or artificially generated signature"]
+ },
+ thumb:{
+  good:["Real requested finger and hand","Complete, centered impression","Readable, unsmudged ridges"],
+  bad:["Wrong finger or hand","Marks reaching image edge","Smudged, faint or cropped ridges"]
+ },
+ declaration:{
+  good:["Genuine handwritten text","Entire writing remains readable","Wording and ink checked before submission"],
+  bad:["Typed text when handwriting is required","Missing or cut-off lines","Unreadable writing or incorrect wording"]
+ },
+ document:{
+  good:["All corners and text remain visible","Clear seals and signatures","Correct, complete original document"],
+  bad:["Cut-off content or unreadable text","Expired or incorrect document","Modified original details"]
+ }
 };
-const iconFor:Record<ExamAssetKind,typeof FileImage>={photo:FileImage,signature:PenLine,thumb:Fingerprint,declaration:ScrollText,document:FileText};
-const ALL_KINDS:ExamAssetKind[]=["photo","signature","thumb","declaration","document"];
-function suggestedFor(kind:ExamAssetKind){
- return EXAM_UPLOAD_PRESETS.find(p=>p.kind===kind && p.agency!=="Custom") ||
- EXAM_UPLOAD_PRESETS.find(p=>p.kind===kind)!;
+function displaySize(bytes:number){return (bytes/1024).toFixed(1)+" KB";}
+function suggestedKind(slug:string):ExamAssetKind {
+ if(slug.includes("signature"))return "signature";
+ if(slug.includes("thumb"))return "thumb";
+ if(slug.includes("declaration"))return "declaration";
+ if(slug.includes("document"))return "document";
+ return "photo";
 }
-function asKiB(n:number){return (n/1024).toFixed(1)+" KiB";}
-function numInput(label:string,value:number,min:number,max:number,onChange:(value:number)=>void,step=1){
- return <label className="block text-xs font-medium">{label}
-  <input type="number" value={value} min={min} max={max} step={step}
-    onChange={e=>onChange(Number(e.target.value))} className="mt-1 w-full rounded-lg border border-border bg-background px-2 py-2.5 text-sm"/>
- </label>;
+function cleanName(name:string){return name.replace(/\.[^.]+$/,"").replace(/[^a-z0-9_.-]+/gi,"-").slice(0,65)||"image";}
+function previewCanvas(source:HTMLCanvasElement,target:HTMLCanvasElement) {
+ const scale=Math.min(1,450/Math.max(source.width,source.height));
+ target.width=Math.max(1,Math.round(source.width*scale));
+ target.height=Math.max(1,Math.round(source.height*scale));
+ target.getContext("2d")?.drawImage(source,0,0,target.width,target.height);
 }
-function makePreview(src:HTMLCanvasElement,target:HTMLCanvasElement){
- const w=src.width,h=src.height,scale=Math.min(1,450/Math.max(w,h));
- target.width=Math.max(1,Math.round(w*scale));
- target.height=Math.max(1,Math.round(h*scale));
- target.getContext("2d")?.drawImage(src,0,0,target.width,target.height);
-}
-async function pdfFromImage(image:HTMLImageElement,maxKB:number):Promise<Blob>{
+async function toA4Pdf(img:HTMLImageElement,maxKB:number|null):Promise<Blob> {
  const {PDFDocument}=await import("pdf-lib");
- const iw=image.naturalWidth,ih=image.naturalHeight;
- let last:Blob|null=null;
- for(let pass=0;pass<10;pass++){
-  const canvas=document.createElement("canvas");
-  const limit=Math.max(480,1800-pass*145);
-  const factor=Math.min(1,limit/Math.max(iw,ih));
-  canvas.width=Math.max(100,Math.round(iw*factor));
-  canvas.height=Math.max(100,Math.round(ih*factor));
-  canvas.getContext("2d")?.drawImage(image,0,0,canvas.width,canvas.height);
-  const jpg=await canvasAsBlob(canvas,"jpeg",Math.max(.22,.88-pass*.069));
-  const doc=await PDFDocument.create();
-  const page=doc.addPage([595.28,841.89]);
-  const embedded=await doc.embedJpg(await jpg.arrayBuffer());
-  const availW=595.28-48,availH=841.89-48;
-  const fit=Math.min(availW/embedded.width,availH/embedded.height);
+ let result:Blob|null=null;
+ for(let i=0;i<11;i++){
+  const cnv=document.createElement("canvas");
+  const maxDim=Math.max(450,1900-i*145);
+  const scale=Math.min(1,maxDim/Math.max(img.naturalWidth,img.naturalHeight));
+  cnv.width=Math.max(40,Math.round(img.naturalWidth*scale));
+  cnv.height=Math.max(40,Math.round(img.naturalHeight*scale));
+  cnv.getContext("2d")?.drawImage(img,0,0,cnv.width,cnv.height);
+  const jpeg=await canvasAsBlob(cnv,"jpeg",Math.max(.22,.91-i*.067));
+  const pdf=await PDFDocument.create();
+  const page=pdf.addPage([595.28,841.89]);
+  const embedded=await pdf.embedJpg(await jpeg.arrayBuffer());
+  const fit=Math.min((595.28-45)/embedded.width,(841.89-45)/embedded.height);
   const w=embedded.width*fit,h=embedded.height*fit;
   page.drawImage(embedded,{x:(595.28-w)/2,y:(841.89-h)/2,width:w,height:h});
-  last=new Blob([new Uint8Array(await doc.save())],{type:"application/pdf"});
-  if(last.size<=maxKB*1024) return last;
+  result=new Blob([new Uint8Array(await pdf.save())],{type:"application/pdf"});
+  if(!maxKB||result.size<=maxKB*1024)break;
  }
- if(!last)throw Error("Could not encode A4 PDF");
- return last;
+ if(!result)throw Error("PDF creation failed");
+ return result;
 }
-
-export default function ExamApplicationStudio({tool}:{tool:Tool}){
- const inferred:ExamAssetKind=tool.slug.includes("signature")?"signature":tool.slug.includes("thumb")?"thumb":tool.slug.includes("declaration")?"declaration":tool.slug.includes("document")?"document":"photo";
- const [kind,setKind]=useState<ExamAssetKind>(inferred);
- const [presetId,setPresetId]=useState(suggestedFor(inferred).id);
- const [source,setSource]=useState<{file:File;img:HTMLImageElement}|null>(null);
- const [spec,setSpec]=useState(()=>({width:suggestedFor(inferred).width,height:suggestedFor(inferred).height,
-  minKB:suggestedFor(inferred).minKB,maxKB:suggestedFor(inferred).maxKB,format:suggestedFor(inferred).format as ExamImageFormat}));
+export default function ExamApplicationStudio({tool}:{tool:Tool}) {
+ const initial=suggestedKind(tool.slug);
+ const [kind,setKind]=useState<ExamAssetKind>(initial);
+ const [source,setSource]=useState<{file:File;image:HTMLImageElement}|null>(null);
+ const [mode,setMode]=useState<ResizeMode>("size");
+ const [width,setWidth]=useState(200);
+ const [height,setHeight]=useState(200);
+ const [lockAspect,setLockAspect]=useState(true);
+ const [percentage,setPercentage]=useState(100);
+ const [fit,setFit]=useState<ExamFitMode>("contain");
  const [zoom,setZoom]=useState(1);
- const [x,setX]=useState(.5);
- const [y,setY]=useState(.5);
- const [inset,setInset]=useState(.12);
- const [clean,setClean]=useState(false);
+ const [offsetX,setOffsetX]=useState(.5);
+ const [offsetY,setOffsetY]=useState(.5);
+ const [paperCleanup,setPaperCleanup]=useState(false);
+ const [format,setFormat]=useState<FormatChoice>("original");
+ const [maxKB,setMaxKB]=useState("");
+ const [minKB,setMinKB]=useState("");
+ const [showAdvanced,setShowAdvanced]=useState(false);
+ const [showGuide,setShowGuide]=useState(false);
+ const [analysis,setAnalysis]=useState<ExamImageAnalysis|null>(null);
  const [busy,setBusy]=useState(false);
  const [error,setError]=useState("");
- const [analysis,setAnalysis]=useState<ExamImageAnalysis|null>(null);
- const [output,setOutput]=useState<{name:string;blob:Blob;issues:string[]}|null>(null);
- const [kit,setKit]=useState<KitFile[]>([]);
- const [checks,setChecks]=useState([false,false,false,false]);
- const [sourceInfo,setSourceInfo]=useState("");
- const preview=useRef<HTMLCanvasElement>(null);
+ const [output,setOutput]=useState<Output|null>(null);
+ const [kit,setKit]=useState<KitItem[]>([]);
  const picker=useRef<HTMLInputElement>(null);
- const preset=EXAM_UPLOAD_PRESETS.find(p=>p.id===presetId)||suggestedFor(kind);
- const isDocument=kind==="document";
- const changeKind=(v:ExamAssetKind)=>{
-  const p=suggestedFor(v);setKind(v);setPresetId(p.id);setSpec({width:p.width,height:p.height,minKB:p.minKB,maxKB:p.maxKB,format:p.format});
-  setSource(null);setError("");setAnalysis(null);setOutput(null);setZoom(1);setX(.5);setY(.5);setChecks([false,false,false,false]);
-  if(picker.current)picker.current.value="";
- };
- const choosePreset=(v:string)=>{
-  const p=EXAM_UPLOAD_PRESETS.find(s=>s.id===v);
-  if(!p)return;
-  setPresetId(v);setSpec({width:p.width,height:p.height,minKB:p.minKB,maxKB:p.maxKB,format:p.format});
-  setOutput(null);setChecks([false,false,false,false]);setError("");
- };
- const setField=<K extends keyof typeof spec>(key:K,value:(typeof spec)[K])=>{
-  setSpec(s=>({...s,[key]:value}));setOutput(null);
- };
- const chooseFile=async(file?:File)=>{
-  setError("");setOutput(null);setAnalysis(null);setSource(null);setChecks([false,false,false,false]);
+ const canvasPreview=useRef<HTMLCanvasElement>(null);
+ const [previewReady,setPreviewReady]=useState(false);
+
+ const documentMode=kind==="document";
+ const originalW=source?.image.naturalWidth||200,originalH=source?.image.naturalHeight||200;
+ const actual=mode==="percent"?percentDimensions(originalW,originalH,percentage):{width:clampExamDimension(width),height:clampExamDimension(height)};
+ const effectiveFormat:ExamImageFormat=format==="original"
+  ?(source?.file.type==="image/png"?"png":source?.file.type==="image/webp"?"webp":"jpeg"):format;
+ const maxNumber=maxKB.trim()?Number(maxKB):null;
+ const minNumber=minKB.trim()?Number(minKB):null;
+ const extension=effectiveFormat==="jpeg"?"jpg":effectiveFormat;
+ const displayName=source?cleanName(source.file.name)+"-"+actual.width+"x"+actual.height+"."+extension:"";
+ const canEdit=!!source&&!busy;
+
+ function resetEditor(){
+  setMode("size");setLockAspect(true);setPercentage(100);setFit("contain");
+  setZoom(1);setOffsetX(.5);setOffsetY(.5);setPaperCleanup(false);
+  setFormat("original");setMaxKB("");setMinKB("");setError("");setOutput(null);setAnalysis(null);
+ }
+ function chooseKind(id:ExamAssetKind) {
+  if(id===kind)return;
+  setKind(id);
+  // Preserve the uploaded image across editor modes, but each type gets a
+  // separate exported entry in the kit.
+  setOutput(null);setPaperCleanup(false);setFit("contain");setError("");
+ }
+ async function upload(file?:File) {
+  setError("");setOutput(null);setSource(null);setPreviewReady(false);
   if(!file)return;
   setBusy(true);
   try{
-   const img=await loadExamImage(file);setSource({file,img});
-   setSourceInfo(img.naturalWidth+" × "+img.naturalHeight+" px · "+formatFileSize(file.size));
-  }catch(e){setError(e instanceof Error?e.message:"Unable to read image");}
+   const image=await loadExamImage(file);
+   setSource({file,image});
+   setWidth(clampExamDimension(image.naturalWidth));
+   setHeight(clampExamDimension(image.naturalHeight));
+   resetEditor();
+  }catch(e){setError(e instanceof Error?e.message:"Could not load the image");}
   finally{setBusy(false);}
- };
+ }
+ function setDimension(which:"width"|"height",raw:string){
+  const v=Number(raw);
+  if(!raw.trim()||!Number.isFinite(v))return;
+  const next=clampExamDimension(v);
+  if(which==="width"){
+   setWidth(next);
+   if(lockAspect)setHeight(dimensionFromOther(next,originalH,originalW));
+  }else{
+   setHeight(next);
+   if(lockAspect)setWidth(dimensionFromOther(next,originalW,originalH));
+  }
+  setOutput(null);
+ }
+ function newFit(v:ExamFitMode){
+  setFit(v);setZoom(1);setOffsetX(.5);setOffsetY(.5);setOutput(null);
+ }
  useEffect(()=>{
-  if(!source||!preview.current||!Number.isFinite(spec.width)||!Number.isFinite(spec.height)||spec.width<20||spec.height<20)return;
-  let frame=0;
+  if(!source||!canvasPreview.current||documentMode)return;
+  let raf=0;
   try{
-   const canvas=renderExamImage(source.img,{width:clampExamDimension(spec.width),height:clampExamDimension(spec.height),
-    kind,zoom,x,y,paperCleanup:clean,inset});
-   makePreview(canvas,preview.current);
-   const result=analyzeExamCanvas(canvas,kind);
-   frame=window.requestAnimationFrame(()=>setAnalysis(result));
-  }catch{ /* Invalid in-progress dimensions; export validation reports detail. */ }
-  return ()=>window.cancelAnimationFrame(frame);
- },[source,spec.width,spec.height,kind,zoom,x,y,clean,inset]);
- async function createOutput(){
+   const canvas=renderExamImage(source.image,{
+    width:actual.width,height:actual.height,kind,zoom,x:offsetX,y:offsetY,
+    fit,paperCleanup,inset:.06
+   });
+   previewCanvas(canvas,canvasPreview.current);
+   const quality=analyzeExamCanvas(canvas,kind);
+   raf=window.requestAnimationFrame(()=>{setAnalysis(quality);setPreviewReady(true);});
+  }catch{
+   raf=window.requestAnimationFrame(()=>setPreviewReady(false));
+  }
+  return()=>window.cancelAnimationFrame(raf);
+ },[source,actual.width,actual.height,kind,fit,zoom,offsetX,offsetY,paperCleanup,documentMode]);
+ function handleReset(){
+  setWidth(clampExamDimension(originalW));setHeight(clampExamDimension(originalH));resetEditor();
+ }
+ async function generate(){
   if(!source||busy)return;
-  setError("");setBusy(true);
+  setBusy(true);setError("");setOutput(null);
   try{
-   if(!Number.isInteger(spec.width)||!Number.isInteger(spec.height)||spec.width<20||spec.height<20||spec.width>4000||spec.height>4000)
-     throw Error("Pixel dimensions must be whole numbers between 20 and 4000");
-   if(!Number.isFinite(spec.minKB)||!Number.isFinite(spec.maxKB)||spec.minKB<0||spec.maxKB<1||spec.minKB>spec.maxKB||spec.maxKB>3000)
-     throw Error("Enter a valid minimum and maximum file size (up to 3000 KiB)");
-   if(isDocument){
-     const pdf=await pdfFromImage(source.img,spec.maxKB);
-     const issues=pdf.size>spec.maxKB*1024?["PDF exceeds maximum KB; try clearer smaller scan"]:[];
-     const out={name:"airtools-exam-document.pdf",blob:pdf,issues};
-     setOutput(out);setKit(k=>[...k.filter(i=>i.kind!=="document"),{kind,name:out.name,blob:pdf,status:issues.length?"review":"pass"}]);
+   if(!Number.isInteger(actual.width)||!Number.isInteger(actual.height)||actual.width<20||actual.height<20||actual.width>4000||actual.height>4000)
+    throw Error("Dimensions must be whole pixel values between 20 and 4000");
+   if(actual.width*actual.height>16_000_000)throw Error("Output must not exceed 16 megapixels");
+   if(maxNumber!==null&&(!Number.isFinite(maxNumber)||maxNumber<1||maxNumber>5000))
+    throw Error("Maximum size must be between 1 and 5000 KB");
+   if(minNumber!==null&&(!Number.isFinite(minNumber)||minNumber<0||minNumber>5000))
+    throw Error("Minimum size must be between 0 and 5000 KB");
+   if(minNumber!==null&&maxNumber!==null&&minNumber>maxNumber)
+    throw Error("Minimum KB cannot exceed maximum KB");
+   if(documentMode) {
+    const pdf=await toA4Pdf(source.image,maxNumber);
+    const issues:string[]=[];
+    if(minNumber!==null&&pdf.size<minNumber*1024)issues.push("PDF is smaller than your requested minimum.");
+    if(maxNumber!==null&&pdf.size>maxNumber*1024)issues.push("PDF exceeds your maximum KB.");
+    const result={blob:pdf,name:cleanName(source.file.name)+"-A4.pdf",width:595,height:842,issues};
+    setOutput(result);setKit(items=>[...items.filter(i=>i.kind!==kind),{kind,blob:pdf,name:result.name,issues}]);
    }else{
-     const canvas=renderExamImage(source.img,{width:spec.width,height:spec.height,kind,zoom,x,y,paperCleanup:clean,inset});
-     const result=await sizeTargetExport(canvas,spec.format,spec.minKB,spec.maxKB);
-     const outcome=validateExamOutput(result.blob.size,canvas.width,canvas.height,spec,result.blob.type);
-     const name=examOutputName(kind,spec.format);
-     const out={name,blob:result.blob,issues:outcome.issues};
-     setOutput(out);setAnalysis(analyzeExamCanvas(canvas,kind));
-     setKit(k=>[...k.filter(i=>i.kind!==kind),{kind,name,blob:result.blob,status:outcome.passed?"pass":"review"}]);
+    const canvas=renderExamImage(source.image,{
+     width:actual.width,height:actual.height,kind,zoom,x:offsetX,y:offsetY,
+     fit,paperCleanup,inset:.06
+    });
+    const result=await sizeTargetExport(canvas,effectiveFormat,minNumber||0,maxNumber||0);
+    const technical=validateExamOutput(result.blob.size,actual.width,actual.height,{
+     width:actual.width,height:actual.height,format:effectiveFormat,
+     ...(minNumber!==null?{minKB:minNumber}:{}),...(maxNumber!==null?{maxKB:maxNumber}:{})
+    },result.blob.type);
+    const outputName=cleanName(source.file.name)+"-"+kind+"-"+actual.width+"x"+actual.height+"."+extension;
+    const value={blob:result.blob,name:outputName,issues:technical.issues,width:actual.width,height:actual.height};
+    setOutput(value);
+    setKit(items=>[...items.filter(i=>i.kind!==kind),{kind,blob:result.blob,name:outputName,issues:technical.issues}]);
    }
-  }catch(e){setError(e instanceof Error?e.message:"Image conversion failed");}
+  }catch(e){setError(e instanceof Error?e.message:"Export failed");}
   finally{setBusy(false);}
  }
  async function exportKit(){
-  if(!kit.length)return;setBusy(true);setError("");
+  if(!kit.length||busy)return;
+  setBusy(true);setError("");
   try{
-   const JSZip=(await import("jszip")).default,zip=new JSZip();
-   for(const item of kit)zip.file(item.name,item.blob);
-   zip.file("README.txt","EXAM FORM UPLOAD KIT\n\nAlways compare every saved file with your CURRENT recruitment notification and portal.\nThese are formatted candidate uploads, NOT government-certified or guaranteed accepted.\nNever submit a photo replacement for a compulsory live camera capture.\nPhotos, handwriting, signatures and impressions must be genuine.\n");
-   downloadBlob(await zip.generateAsync({type:"blob"}),"airtools-exam-upload-kit.zip");
-  }catch(e){setError(e instanceof Error?e.message:"Could not create ZIP");}
+   const JSZip=(await import("jszip")).default;
+   const zip=new JSZip();
+   kit.forEach(item=>zip.file(item.name,item.blob));
+   downloadBlob(await zip.generateAsync({type:"blob"}),"airtools-form-upload-files.zip");
+  }catch(e){setError(e instanceof Error?e.message:"Could not create ZIP file");}
   finally{setBusy(false);}
  }
- const guide=GUIDES[kind];
+ const guide=GUIDE[kind];
+
  return <div className="space-y-5">
-  <section className="rounded-2xl border border-border p-5 space-y-2">
-   <h2 className="text-xl font-bold">Exam Application Upload Studio</h2>
-   <p className="text-sm text-muted-foreground">Prepare original photographs, signatures, thumb impressions, handwritten declarations and scanned documents for recruitment forms. Pixel dimensions, KiB targets, JPEG/PNG/WebP conversion, crop, paper cleanup and ZIP kit — all processed on your device.</p>
-   <p className="text-xs text-amber-700 dark:text-amber-400"><AlertTriangle className="inline h-4 w-4 mr-1"/>Specifications depend on each exam notice. Passing file-size and pixel checks does not guarantee portal acceptance, facial authenticity, ink compliance or biometric validity. Never digitally replace a compulsory live photo.</p>
-  </section>
-  <nav className="grid grid-cols-2 gap-2 sm:grid-cols-5" aria-label="Application file type">
-   {ALL_KINDS.map(k=>{const Icon=iconFor[k];return <button type="button" key={k} aria-pressed={kind===k} onClick={()=>changeKind(k)}
-     className={"rounded-xl border-2 p-3 text-center text-xs font-semibold capitalize "+(kind===k?"border-primary bg-primary/10":"border-border hover:border-primary/50")}>
-     <Icon className="mx-auto mb-1 h-5 w-5"/>{k==="document"?"Document to PDF":k}
-    </button>;})}
-  </nav>
-  <section className="space-y-3 rounded-2xl border border-border p-4">
-   <h3 className="font-semibold">1. Choose exam-specific example or enter your notice</h3>
-   <select aria-label="Recruitment portal template" value={presetId} onChange={e=>choosePreset(e.target.value)}
-     className="w-full rounded-lg border border-border bg-background p-3 text-sm">
-    {EXAM_UPLOAD_PRESETS.filter(p=>p.kind===kind).map(p=><option key={p.id} value={p.id}>{p.label}</option>)}
-   </select>
-   <div className="text-xs text-muted-foreground space-y-2">
-    <p>{preset.dimensionNote}</p>
-    {preset.source&&<a className="font-medium underline text-primary" href={preset.source} target="_blank" rel="noopener noreferrer">View source notice — {preset.sourceLabel} ↗</a>}
-    <ul className="list-disc pl-5">{preset.requirement.map(r=><li key={r}>{r}</li>)}</ul>
-   </div>
-   <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-    {numInput("Width (px)",spec.width,20,4000,v=>setField("width",clampExamDimension(v)))}
-    {numInput("Height (px)",spec.height,20,4000,v=>setField("height",clampExamDimension(v)))}
-    {numInput("Min KiB",spec.minKB,0,3000,v=>setField("minKB",Math.max(0,Math.min(3000,Number.isFinite(v)?v:0))))}
-    {numInput("Max KiB",spec.maxKB,1,3000,v=>setField("maxKB",Math.max(1,Math.min(3000,Number.isFinite(v)?v:1))))}
-    <label className="text-xs font-medium">Output format
-     <select value={spec.format} disabled={isDocument} onChange={e=>setField("format",e.target.value as ExamImageFormat)} className="mt-1 w-full rounded-lg border border-border bg-background p-2.5 text-sm">
-      <option value="jpeg">JPG/JPEG</option><option value="png">PNG</option><option value="webp">WebP</option>
-     </select>
-    </label>
-   </div>
-   {isDocument&&<p className="text-xs text-muted-foreground">Scanned image → A4 PDF; uses a JPEG scan inside PDF, respecting maximum size when feasible. It cannot create or validate legal certificates. For original PDF compression use the separate Compress PDF tool.</p>}
-  </section>
-  <div className="grid gap-5 lg:grid-cols-2">
-   <section className="space-y-3 rounded-2xl border border-border p-4">
-    <h3 className="font-semibold">2. Upload and frame</h3>
-    <label className="flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed border-border px-3 py-7 text-center hover:border-primary">
-     <FileImage className="h-7 w-7 text-primary"/>
-     <span className="text-sm font-medium">Choose a {kind} image</span>
-     <span className="text-xs text-muted-foreground">JPEG, PNG or WebP · max 15 MiB, 28 megapixels · no server upload</span>
-     <input ref={picker} type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={e=>{void chooseFile(e.target.files?.[0]);}}/>
+  <header className="rounded-2xl border border-border bg-card p-5">
+   <h2 className="text-xl font-bold">Photo, Signature & Thumb Resize Editor</h2>
+   <p className="mt-1 text-sm text-muted-foreground">Choose your own dimensions, percentage, file size and format. Resize original images in your browser, then download exactly what you prepared.</p>
+  </header>
+
+  <div className="flex flex-wrap gap-2" aria-label="Type of image to prepare">
+   {UPLOAD_KINDS.map(item=><button key={item.id} type="button" aria-pressed={kind===item.id} onClick={()=>chooseKind(item.id)}
+    className={"rounded-xl border px-3 py-2 text-sm font-medium transition-colors "+(kind===item.id?"border-primary bg-primary/10 text-primary":"border-border hover:border-primary/50")}>
+    {item.label}
+   </button>)}
+  </div>
+
+  <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+   <div className="flex flex-wrap items-center gap-3 border-b border-border p-3">
+    <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium hover:bg-muted">
+     <UploadCloud className="h-4 w-4"/> {source?"Change image":"Add image"}
+     <input ref={picker} type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={e=>{void upload(e.target.files?.[0]);}}/>
     </label>
     {source&&<>
-      <p className="text-xs text-muted-foreground">{source.file.name} · {sourceInfo}</p>
-      <div className="flex min-h-40 justify-center rounded-xl border border-border p-3" style={{backgroundImage:"repeating-conic-gradient(#e5e7eb 0 25%, #fff 0 50%)",backgroundSize:"18px 18px"}}>
-       <canvas ref={preview} aria-label={"Preview of "+kind} className="max-h-[380px] max-w-full object-contain rounded shadow"/>
+     <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">{source.file.name} · {formatFileSize(source.file.size)}</span>
+     <button type="button" className="rounded-lg border border-border p-2 text-muted-foreground hover:text-foreground" title="Remove image"
+      onClick={()=>{setSource(null);setOutput(null);setPreviewReady(false);if(picker.current)picker.current.value="";}}>
+      <Trash2 className="h-4 w-4"/>
+     </button>
+    </>}
+    {!source&&<span className="text-xs text-muted-foreground">JPG, PNG or WebP · 15 MiB maximum · private, on-device</span>}
+   </div>
+
+   <div className="grid lg:grid-cols-[minmax(280px,360px)_minmax(0,1fr)]">
+    <div className="space-y-6 border-b border-border p-4 sm:p-5 lg:border-b-0 lg:border-r">
+     <section className="space-y-4">
+      <h3 className="font-semibold">Resize Settings</h3>
+      <div className="flex rounded-xl bg-muted p-1" role="tablist" aria-label="Resize method">
+       {([{id:"size",label:"By Size"},{id:"percent",label:"As Percentage"}] as const).map(tab=>
+        <button key={tab.id} type="button" role="tab" aria-selected={mode===tab.id} onClick={()=>{setMode(tab.id);setOutput(null);}}
+         className={"flex-1 rounded-lg px-2 py-2 text-xs font-semibold sm:text-sm "+(mode===tab.id?"bg-background text-foreground shadow-sm":"text-muted-foreground hover:text-foreground")}>
+         {tab.label}
+        </button>)}
       </div>
-      <div className="grid grid-cols-2 gap-3">
-       {([
-        ["Zoom",zoom,1,kind==="photo"?4:2,setZoom],
-        ["Horizontal position",x,0,1,setX],
-        ["Vertical position",y,0,1,setY],
-        ["Padding for writing",inset,0,.35,setInset]
-       ] as const).filter(r=>kind!=="photo"||r[0]!=="Padding for writing").map(([label,val,min,max,set])=>
-        <label key={label} className="text-xs">{label}: {Number(val).toFixed(2)}
-         <input type="range" min={min} max={max} step=".02" value={val} onChange={e=>{set(Number(e.target.value));setOutput(null);}} className="block w-full accent-primary"/>
+      {mode==="size" ? <>
+       <div className="grid grid-cols-2 gap-3">
+        <label className="text-sm">Width <span className="text-xs text-muted-foreground">(px)</span>
+         <input type="number" min="20" max="4000" step="1" value={width} disabled={!source} onChange={e=>setDimension("width",e.target.value)}
+          className="mt-2 w-full rounded-lg border border-border bg-background px-3 py-3"/>
         </label>
-       )}
-      </div>
-      {kind!=="photo"&&<label className="flex items-start gap-2 text-xs"><input type="checkbox" checked={clean} onChange={e=>{setClean(e.target.checked);setOutput(null);}}/>
-        Gently whiten nearly-white scanner paper (optional; manually check the ink and do not alter original evidence)
-       </label>}
-      <Button variant="outline" size="sm" onClick={()=>{setZoom(1);setX(.5);setY(.5);setInset(.12);setClean(false);setOutput(null);}}>
-       <RotateCcw className="mr-1 h-4 w-4"/>Reset framing
+        <label className="text-sm">Height <span className="text-xs text-muted-foreground">(px)</span>
+         <input type="number" min="20" max="4000" step="1" value={height} disabled={!source} onChange={e=>setDimension("height",e.target.value)}
+          className="mt-2 w-full rounded-lg border border-border bg-background px-3 py-3"/>
+        </label>
+       </div>
+       <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" checked={lockAspect} onChange={e=>{
+         const next=e.target.checked;setLockAspect(next);
+         if(next&&source)setHeight(dimensionFromOther(width,originalH,originalW));setOutput(null);
+        }}/>
+        <LockKeyhole className="h-4 w-4 text-muted-foreground"/>Lock aspect ratio
+       </label>
+       <p className="text-xs text-muted-foreground">Unlock to set any width and height. The Fit option controls whether the image is cropped or padded.</p>
+      </>:<>
+       <label className="block text-sm">Size: <strong>{percentage}%</strong>
+        <div className="mt-2 flex items-center gap-3 rounded-xl border border-border p-3">
+         <input type="range" min="10" max="300" step="5" value={percentage} disabled={!source}
+          onChange={e=>{setPercentage(Number(e.target.value));setOutput(null);}} className="min-w-0 flex-1 accent-primary"/>
+         <input type="number" min="10" max="300" value={percentage} disabled={!source}
+          onChange={e=>{setPercentage(Math.min(300,Math.max(10,Number(e.target.value)||10)));setOutput(null);}}
+          className="w-16 rounded-lg border border-border bg-background p-1.5 text-right text-sm" aria-label="Resize percentage"/>
+        </div>
+       </label>
+       <p className="text-xs text-muted-foreground">{originalW} × {originalH} becomes {actual.width} × {actual.height} pixels.</p>
+      </>}
+      {!documentMode&&<div className="space-y-2">
+       <label className="block text-sm font-medium">How the image fits</label>
+       <select value={fit} disabled={!source} onChange={e=>newFit(e.target.value as ExamFitMode)}
+        className="w-full rounded-lg border border-border bg-background p-3 text-sm">
+        <option value="contain">Fit entire image (no crop)</option>
+        <option value="cover">Fill dimensions (crop edges)</option>
+        <option value="stretch">Stretch to dimensions (can distort)</option>
+       </select>
+       {fit==="cover"&&source&&<div className="space-y-2 rounded-xl bg-muted/50 p-3">
+        <label className="block text-xs">Crop zoom: {zoom.toFixed(2)}×
+         <input className="block w-full accent-primary" type="range" min="1" max="4" step=".05" value={zoom} onChange={e=>{setZoom(Number(e.target.value));setOutput(null);}}/>
+        </label>
+        {(["X","Y"] as const).map(axis=><label key={axis} className="block text-xs">{axis==="X"?"Horizontal":"Vertical"} crop position
+         <input className="block w-full accent-primary" type="range" min="0" max="1" step=".02" value={axis==="X"?offsetX:offsetY}
+          onChange={e=>{(axis==="X"?setOffsetX:setOffsetY)(Number(e.target.value));setOutput(null);}}/>
+        </label>)}
+       </div>}
+       {fit==="stretch"&&<p className="text-xs text-amber-700 dark:text-amber-400">Stretching can distort faces, signatures and thumb impressions. Use Fit or Crop when possible.</p>}
+      </div>}
+      {!documentMode&&kind!=="photo"&&<label className="flex items-start gap-2 text-xs text-muted-foreground">
+       <input type="checkbox" checked={paperCleanup} onChange={e=>{setPaperCleanup(e.target.checked);setOutput(null);}}/>
+       Whiten nearly-white scanned paper (optional)
+      </label>}
+     </section>
+
+     <section className="space-y-4">
+      <h3 className="font-semibold">Export Settings</h3>
+      <label className="block text-sm">Target file size <span className="text-muted-foreground">(optional maximum)</span>
+       <div className="mt-2 flex overflow-hidden rounded-lg border border-border">
+        <input type="number" min="1" max="5000" value={maxKB} placeholder="e.g. 50" onChange={e=>{setMaxKB(e.target.value);setOutput(null);}}
+         className="min-w-0 flex-1 bg-background px-3 py-3"/>
+        <span className="border-l border-border bg-muted px-3 py-3 text-sm">KB</span>
+       </div>
+      </label>
+      <p className="text-xs text-muted-foreground">Enter your own maximum file size. JPG and WebP can reduce quality to meet it when possible; PNG may not.</p>
+      <button type="button" className="flex w-full items-center justify-between text-sm text-muted-foreground" onClick={()=>setShowAdvanced(v=>!v)} aria-expanded={showAdvanced}>
+       Advanced size options <ChevronDown className={"h-4 w-4 transition-transform "+(showAdvanced?"rotate-180":"")}/>
+      </button>
+      {showAdvanced&&<label className="block text-sm">Minimum file size <span className="text-muted-foreground">(optional)</span>
+       <div className="mt-2 flex overflow-hidden rounded-lg border border-border">
+        <input type="number" min="0" max="5000" value={minKB} placeholder="No minimum" onChange={e=>{setMinKB(e.target.value);setOutput(null);}}
+         className="min-w-0 flex-1 bg-background px-3 py-3"/>
+        <span className="border-l border-border bg-muted px-3 py-3 text-sm">KB</span>
+       </div>
+      </label>}
+      {!documentMode&&<label className="block text-sm">Save Image As
+       <select className="mt-2 w-full rounded-lg border border-border bg-background p-3" value={format}
+        onChange={e=>{setFormat(e.target.value as FormatChoice);setOutput(null);}}>
+        <option value="original">Original format</option>
+        <option value="jpeg">JPG</option>
+        <option value="png">PNG</option>
+        <option value="webp">WebP</option>
+       </select>
+      </label>}
+      {documentMode&&<p className="text-xs text-muted-foreground">This mode generates a single-page A4 PDF from your image. Original multi-page PDF processing is available in the PDF tools.</p>}
+     </section>
+
+     <div className="space-y-2">
+      {error&&<p role="alert" className="rounded-lg border border-red-300 p-2 text-sm text-red-600">{error}</p>}
+      <Button variant="gradient" size="lg" className="w-full" disabled={!canEdit} onClick={()=>{void generate();}}>
+       <Download className="mr-2 h-4 w-4"/>{busy?"Processing…":"Export"}
       </Button>
-     </>}
-   </section>
-   <section className="space-y-4 rounded-2xl border border-border p-4">
-    <h3 className="font-semibold">3. Accepted vs. rejected — visual review</h3>
-    <div className="grid grid-cols-2 gap-3">
-     <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-green-950 dark:border-green-900 dark:bg-green-950/20 dark:text-green-300">
-      <div className="mb-2 flex items-center gap-1 text-sm font-semibold"><CheckCircle2 className="h-4 w-4"/>Usually acceptable*</div>
-      <ul className="space-y-2 text-xs">{guide.good.map(g=><li key={g}>✓ {g}</li>)}</ul>
-     </div>
-     <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-red-950 dark:border-red-900 dark:bg-red-950/20 dark:text-red-300">
-      <div className="mb-2 flex items-center gap-1 text-sm font-semibold"><XCircle className="h-4 w-4"/>Common rejection risks</div>
-      <ul className="space-y-2 text-xs">{guide.bad.map(g=><li key={g}>✕ {g}</li>)}</ul>
+      <Button variant="outline" size="sm" className="w-full" disabled={!source} onClick={handleReset}>
+       <RotateCcw className="mr-1 h-4 w-4"/>Reset settings
+      </Button>
      </div>
     </div>
-    <p className="text-xs text-muted-foreground">*Examples are guidance, not official sample photographs. Inspect the actual recruitment notice; visual issues are not certified by this tool.</p>
-    {analysis&&<div className="space-y-2 rounded-lg bg-muted/50 p-3 text-xs">
-      <p className="font-semibold">Local quality signals (heuristics, not AI biometric checks)</p>
-      <p>Average brightness {analysis.brightness}/255 · Contrast {analysis.contrast} · Dark pixels {(analysis.inkFraction*100).toFixed(1)}%</p>
-      <ul className="space-y-1">{analysis.flags.map(x=><li key={x}>• {x}</li>)}</ul>
-    </div>}
-    <div className="space-y-2">
-     {["I checked the CURRENT portal notification","This is my own genuine source photo / ink impression","I visually checked full framing, wording and legibility","I confirmed the exact required KB, pixels and file format"].map((label,i)=>
-      <label key={label} className="flex items-start gap-2 text-xs"><input type="checkbox" checked={checks[i]} onChange={e=>setChecks(old=>old.map((v,j)=>j===i?e.target.checked:v))} className="mt-0.5"/>{label}</label>
-     )}
-     <p className="text-xs text-muted-foreground">{checks.filter(Boolean).length}/4 manual pre-upload checks acknowledged</p>
+
+    <div className="min-w-0 space-y-5 bg-muted/10 p-4 sm:p-6">
+     {!source?<div className="flex min-h-80 flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-border text-center">
+      <ImageIcon className="h-10 w-10 text-muted-foreground"/>
+      <p className="font-semibold">Add an image to see your preview</p>
+      <p className="max-w-xs text-sm text-muted-foreground">Its original width and height will populate automatically, just like a regular image resizer.</p>
+     </div>:<div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+       <h3 className="font-semibold">Live Preview</h3>
+       <span className="rounded-lg bg-muted px-2 py-1 text-xs">{documentMode?"A4 PDF":actual.width+" × "+actual.height+" px"}</span>
+      </div>
+      <div className="flex min-h-64 items-center justify-center rounded-xl bg-muted/50 p-4" style={{backgroundImage:"repeating-conic-gradient(#e6e6e6 0 25%,#fff 0 50%)",backgroundSize:"20px 20px"}}>
+       {documentMode?
+        <div className="space-y-3 text-center text-sm">
+         <FileImage className="mx-auto h-10 w-10"/>
+         <p>Source image will be placed on an A4 PDF page.</p>
+         <p className="text-muted-foreground">{originalW} × {originalH} px source</p>
+        </div>:
+        <canvas ref={canvasPreview} aria-label="Image resized preview" className={"max-h-[440px] max-w-full rounded shadow-sm "+(!previewReady?"opacity-60":"")}/>
+       }
+      </div>
+      <div className="rounded-xl border border-border bg-card p-3">
+       <p className="truncate text-sm font-semibold">{documentMode?cleanName(source.file.name)+"-A4.pdf":displayName}</p>
+       <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+        <span className="rounded-lg bg-muted px-2 py-1">{originalW} × {originalH}</span>
+        <span aria-hidden>→</span>
+        <span className="rounded-lg bg-green-100 px-2 py-1 font-semibold text-green-900">{documentMode?"A4":actual.width+" × "+actual.height}</span>
+       </div>
+       <p className="mt-2 text-xs text-muted-foreground">Preview shows the chosen crop and dimensions. Actual output file size is verified after export.</p>
+      </div>
+      {analysis&&!documentMode&&<p className="text-xs text-muted-foreground">
+       <Info className="mr-1 inline h-3.5 w-3.5"/>Brightness {analysis.brightness}/255 · Contrast {analysis.contrast}. These are rough signals, not official acceptance tests.
+      </p>}
+     </div>}
+
+     {output&&<section className="space-y-3 rounded-xl border border-border bg-card p-4">
+      <div className="flex items-center gap-2">
+       {output.issues.length?<AlertTriangle className="h-5 w-5 text-amber-600"/>:<CheckCircle2 className="h-5 w-5 text-green-600"/>}
+       <div><p className="text-sm font-semibold">{output.issues.length?"Review size or format":"Technical checks passed"}</p>
+        <p className="text-xs text-muted-foreground">{displaySize(output.blob.size)} · {output.name}</p></div>
+      </div>
+      {output.issues.map(issue=><p key={issue} className="text-xs text-amber-700">{issue}</p>)}
+      <p className="text-xs text-muted-foreground">File checks do not guarantee acceptance by an application website.</p>
+      <Button onClick={()=>downloadBlob(output.blob,output.name)} className="w-full"><Download className="mr-2 h-4 w-4"/>Download image/file</Button>
+     </section>}
     </div>
-   </section>
+   </div>
   </div>
-  <section className="rounded-2xl border border-border p-4 space-y-3">
-   <h3 className="font-semibold">4. Generate and validate your file</h3>
-   <p className="text-xs text-muted-foreground">The editor searches JPEG/WebP compression qualities for the chosen KiB range. Very simple scans can remain smaller than the minimum even at maximum quality; highly detailed files may exceed the maximum. It never falsely marks them as passing.</p>
-   {error&&<p role="alert" className="rounded-lg border border-red-300 p-3 text-sm text-red-600">{error}</p>}
-   <Button size="lg" variant="gradient" className="w-full" disabled={!source||busy} onClick={()=>{void createOutput();}}>
-    <FileCheck2 className="mr-2 h-4 w-4"/>{busy?"Preparing file…":"Generate upload-ready "+(isDocument?"PDF":kind)}
-   </Button>
-   {output&&<div className="space-y-3 rounded-xl border border-border p-4">
-     <div className="flex items-center gap-2">
-      {output.issues.length===0?<CheckCircle2 className="h-5 w-5 text-green-600"/>:<AlertTriangle className="h-5 w-5 text-amber-600"/>}
-      <div><p className="font-semibold text-sm">{output.issues.length?"Review required: technical checks failed":"File format, pixels and size checks passed"}</p>
-       <p className="text-xs text-muted-foreground">{output.name} · {asKiB(output.blob.size)} · {isDocument?"A4 PDF":spec.width+" × "+spec.height+" px"}</p></div>
-     </div>
-     {output.issues.map(issue=><p key={issue} className="text-xs text-amber-700">• {issue}</p>)}
-     <p className="text-xs text-muted-foreground">Technical checks only: a real examination portal can still reject unsuitable photo content, fake signatures, blurred text or a different notice specification.</p>
-     <Button className="w-full" onClick={()=>downloadBlob(output.blob,output.name)}><Download className="mr-2 h-4 w-4"/>Download {output.name}</Button>
-    </div>}
-  </section>
+
   {kit.length>0&&<section className="space-y-3 rounded-2xl border border-border p-4">
-   <h3 className="flex items-center gap-2 font-semibold"><Package className="h-4 w-4"/>Application form upload kit ({kit.length}/5)</h3>
-   <p className="text-xs text-muted-foreground">Prepare different file types using tabs above. Your prepared images remain in this tab and can be downloaded together.</p>
-   <div className="grid gap-2 sm:grid-cols-2">{kit.map(it=><div key={it.kind} className="flex items-center justify-between rounded-lg bg-muted/40 p-2 text-xs">
-    <span>{it.name} · {asKiB(it.blob.size)}</span><span className={it.status==="pass"?"text-green-600":"text-amber-600"}>{it.status==="pass"?"Size OK":"Review"}</span>
+   <div className="flex items-center justify-between">
+    <h3 className="font-semibold">Your prepared files</h3>
+    <button type="button" className="text-xs text-muted-foreground underline" onClick={()=>setKit([])}>Clear list</button>
+   </div>
+   <div className="grid gap-2 sm:grid-cols-2">{kit.map(item=><div key={item.kind} className="flex justify-between gap-2 rounded-lg bg-muted/30 p-3 text-xs">
+    <span className="truncate">{item.name}</span>
+    <span className={item.issues.length?"text-amber-600":"text-green-600"}>{displaySize(item.blob.size)}</span>
    </div>)}</div>
-   <Button variant="outline" disabled={busy} className="w-full" onClick={()=>{void exportKit();}}><Download className="mr-2 h-4 w-4"/>Download all as ZIP</Button>
+   <Button variant="outline" onClick={()=>{void exportKit();}} disabled={busy} className="w-full"><Package className="mr-2 h-4 w-4"/>Download all as ZIP</Button>
   </section>}
-  <p className="text-xs text-muted-foreground flex items-start gap-1"><ShieldCheck className="h-4 w-4 shrink-0"/>No login, payment, server storage or external image processor. Data stays in your browser; source files and prepared assets disappear when the tab closes. Exam authorities may change file rules without notice.</p>
+  <section className="rounded-2xl border border-border p-4">
+   <button type="button" aria-expanded={showGuide} onClick={()=>setShowGuide(v=>!v)} className="flex w-full items-center justify-between gap-2 text-left font-semibold">
+    <span>Accepted & rejected image checklist</span><ChevronDown className={"h-4 w-4 transition-transform "+(showGuide?"rotate-180":"")}/>
+   </button>
+   {showGuide&&<div className="mt-4 grid gap-3 sm:grid-cols-2">
+    <div className="space-y-2 rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-950 dark:bg-green-950/20 dark:text-green-200">
+     <p className="flex items-center gap-1 font-semibold"><CheckCircle2 className="h-4 w-4"/>Typically suitable</p>
+     {guide.good.map(x=><p key={x} className="text-xs">✓ {x}</p>)}
+    </div>
+    <div className="space-y-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-950 dark:bg-red-950/20 dark:text-red-200">
+     <p className="flex items-center gap-1 font-semibold"><XCircle className="h-4 w-4"/>Common problems</p>
+     {guide.bad.map(x=><p key={x} className="text-xs">✕ {x}</p>)}
+    </div>
+    <p className="text-xs text-muted-foreground sm:col-span-2">These examples are general quality guidance. Follow the specifications shown by the application website you are submitting to.</p>
+   </div>}
+  </section>
+  <p className="flex items-start gap-2 text-xs text-muted-foreground"><AlertTriangle className="h-4 w-4 shrink-0"/>No source image is uploaded to AirTools servers by this editor. Use an authentic photo, genuine handwritten signature or real thumb impression. Cropping and resizing cannot replace any compulsory live-camera capture.</p>
  </div>;
 }

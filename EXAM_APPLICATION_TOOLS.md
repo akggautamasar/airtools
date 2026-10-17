@@ -1,26 +1,19 @@
-# Exam Application Tools — requirements, evidence and limitations (17 October 2026)
+# Custom Photo, Signature & Thumb Resizer
 
-AirTools now has a dedicated category at `/tools?category=exam`, with a reusable client-side processor on eight URLs.
+AirTools' Exam Application Tools category is a **general image-resize workspace**. There are no agency-specific, year-specific, notice-specific, or default "official" preset requirements in the editor.
 
-## Features
-- Prepare *original* photograph, signature, thumb impression, handwritten declaration and scanned certificate image (converted to A4 PDF).
-- Choose notice-labeled example presets (not universal) or edit width/height pixels, image output format, minimum/maximum KiB, manual crop scale/position and image compression.
-- For handwriting and thumb impressions, maintain aspect ratio over white paper; optional brightening of nearly-white scanned paper; no AI re-creation, signature generation or image forgery.
-- JPEG/WebP compression search tries multiple encoder qualities; PNG size optimization is limited to the browser encoder. Impossible file-size ranges are flagged rather than reported as passing.
-- Technical output validation for bytes, MIME and pixels (A4 document PDF checks maximum size). Optional local heuristic brightness, contrast and near-edge dark marks. This is NOT a blur/face biometric certification or government portal validation.
-- Contextual good/bad examples in text, plus four manual checklist confirmations.
-- Build single-candidate ZIP containing different prepared file types. No uploads to third-party AI models, cloud storage or servers; source and output stay in browser memory.
-- Limits: source JPEG/PNG/WebP <= 15 MiB / <= 28 megapixels; target pixel width/height 20–4000; max target 3000 KiB; source documents are images, NOT existing PDFs.
+## Workflow
+1. Choose a file type (Photo, Signature, Thumb impression, Declaration or Document PDF); upload a JPEG, PNG or WebP image.
+2. The editor reads its original pixel width and height and populates both fields automatically. Select **By Size** for user-entered width/height or **As Percentage** for a percentage slider; aspect ratio lock is enabled by default in Size mode. Unlock to choose independent width and height.
+3. Fit entire image (pad with white where aspect differs) is the default, especially useful for signatures/thumb scans. Users can choose Fill (crop) with zoom and horizontal/vertical position sliders, or Stretch (which may distort).
+4. Optional maximum KB and optional advanced minimum KB; output format Original, JPG, PNG or WebP. On image export, the program tries progressively lower JPEG/WebP qualities to meet the limit while preserving output pixels; PNG often cannot meet a small KB cap, in which case an actionable warning appears. The output file is still provided and its actual dimensions, bytes and MIME are validated.
+5. The right panel previews the resized image and shows original dimensions → requested dimensions. Export produces a downloadable file and tracks it in the user's in-memory multi-file ZIP kit.
+6. Optional accepted/rejected checklist, without any automated government approval claim.
+7. Document mode converts one uploaded scanned image into a single-page A4 PDF. Source PDF uploads are a separate tool.
 
-## Examples grounded in particular notices
-- RRB CEN 09/2025 Group-D FAQ: **photo JPEG 40–70 KB, signature JPEG 30–70 KB, minimum 100 DPI**. https://www.rrbcdg.gov.in/uploads/2025/09-LVL1/092025-FAQs.pdf
-- RRB CEN 02/2025 Technician: scanned signature **JPEG 30–49 KB, at least 140×60 px, 100 DPI scan**, genuine black running cursive on white. https://www.rrbcdg.gov.in/uploads/2025/02-TECH/022025-CEN.pdf
-- IBPS-hosted 2025/26 NABF recruitment upload instructions: **signature 140×60 preferred, 10–20 KB; thumb 240×240 preferred, 20–50 KB; declaration 800×400 preferred, 50–100 KB**. Those are specific to the cited registration, NOT all IBPS recruitment processes. https://ibpsreg.ibps.in/nabfdsadec25/
-- SSC CHSL 2024 historical notice: signature **10–20 KB JPEG, about 4×2 cm**; *live photo capture* required. Do not replace a live capture with edited photo. https://ssc.gov.in/api/attachment/uploads/masterData/NoticeBoards/Notice%20of%20CHSLE%202024_05_04_24.pdf
-- These are dated reference templates. Recruitment bodies frequently change upload procedures and exact file limits, and a particular applicant portal is authoritative. Where source specifies physical dimensions or a minimum only, working pixel dimensions in our tool are explicitly labeled *editable, not official*.
-
-## What is not provided
-- No guarantee of acceptance, no official endorsement, no identity/biometric verification, no artificial signatures/handwriting/thumb impressions, no alteration of identity features, no ability to override required in-app live photo capture.
-- A cropped/resized image does not carry certified 100/200/300 DPI metadata merely because its dimensions are set; inspect original scanner DPI and the portal requirements separately.
-- Not all JPEG encoders can achieve a narrow min-max size range without lossy degradation. Visual legibility must be reviewed by candidate.
-- PDFs with multiple existing pages are out of scope for the A4 certificate tool; use PDF processor routes.
+## Limits and caveats
+- Browser-only processing, no server/cloud upload, payment service or account registration. Source image up to 15 MiB and 28 MP; output pixels bounded by 20–4000 each and 16 MP total. KB limits are in 1024-byte increments, user-configurable (1–5000 KB max).
+- Original EXIF metadata and DPI are not guaranteed to survive canvas export; a chosen pixel size is NOT a certified DPI result.
+- A target maximum cannot always be achieved by changing JPEG/WebP quality at fixed dimensions, and PNG may remain too large. The UI shows when actual output is out of range.
+- Never promise recruitment website acceptance. Users enter requirements taken from their own current portal. Do not alter protected identification details, generate handwriting/fingerprints or circumvent compulsory live-camera capture.
+- UX design is inspired by the familiar layout and workflow of ImageResizer.com/resize/editor (By Size, As Percentage, aspect ratio lock, optional KB target and format picker); this is an independently implemented AirTools component with its own layout and code.

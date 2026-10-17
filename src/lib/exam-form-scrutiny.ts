@@ -1,4 +1,4 @@
-import { compareField, parseSuggestedDate } from "./consistency-radar";
+import { compareField, parseSuggestedDate } from "./consistency-radar.ts";
 
 export const DOC_KINDS = [
   { id:"class10", label:"Class 10 / Matriculation marksheet" },
@@ -70,7 +70,7 @@ export function safeValue(key:string,value:string):string {
 }
 export function normalizeScrutinyValue(field:FieldSpec,value:string):string {
   const raw=scrub(value).normalize("NFKC");
-  if(field.type==="date")return parseSuggestedDate(raw)||raw.toUpperCase();
+  if(field.type==="date")return parseSuggestedDate(raw)||"";
   if(field.type==="last4")return raw.replace(/\D/g,"").slice(-4);
   if(field.type==="number")return raw.toUpperCase().replace(/[\s/-]/g,"");
   if(field.type==="year")return /^\d{4}$/.test(raw)?raw:raw.toUpperCase();
@@ -161,6 +161,11 @@ export function compareScrutiny(form:ScrutinyRecord,documents:ScrutinyRecord[]):
     const actual=normalizeScrutinyValue(field,raw);
     const evidence=populated.map(d=>safeValue(field.key,d.values[field.key])).join(" / ");
     const sources=populated.map(d=>d.label);
+    if ((field.type==="date" && (!actual || expected.some(v=>!v))) ||
+        (field.type==="last4" && (actual.length!==4 || expected.some(v=>v.length!==4)))) return {
+      key:field.key,label:field.label,status:"review",submitted,evidence,sources,
+      explanation:"Invalid or incomplete date/identifier detected. Inspect the original record; this cannot be marked as matched.",
+    };
     if(new Set(expected).size>1)return {
       key:field.key,label:field.label,status:"review",submitted,evidence,sources,
       explanation:"Supporting records disagree with each other. Check originals and the examination-specific instructions before making changes.",

@@ -100,6 +100,7 @@ export default function PDFToEpub({ tool }: { tool: Tool }) {
   const [downloading, setDownloading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [uploadStage, setUploadStage] = useState("");
+  const [resumableTicket, setResumableTicket] = useState(false);
   const uploadTicketRef = useRef<PdfEpubUploadTicket | null>(null);
   const [error, setError] = useState("");
   const [result, setResult] = useState<{ blob: Blob; name: string } | null>(null);
@@ -212,6 +213,7 @@ export default function PDFToEpub({ tool }: { tool: Tool }) {
         if (!issued.ok) throw new Error(await readError(issued));
         ticket = await issued.json() as PdfEpubUploadTicket;
         uploadTicketRef.current = ticket;
+        setResumableTicket(ticket.upload_mode === "chunked");
       }
       setError("");
       let first: PdfEpubJob;
@@ -284,6 +286,7 @@ export default function PDFToEpub({ tool }: { tool: Tool }) {
         first = await response.json() as PdfEpubJob;
       }
       uploadTicketRef.current = null;
+      setResumableTicket(false);
       setUploadStage("");
       setUploadProgress(null);
       if (first.job_id !== ticket.job_id) throw new Error("Conversion service returned a mismatched job ID.");
@@ -411,7 +414,7 @@ export default function PDFToEpub({ tool }: { tool: Tool }) {
 
       {!submitted && !processing && (
         <UploadZone accept={ACCEPTED_PDF_TYPES} multiple={false} maxFiles={1} maxSize={maxFile}
-          onFilesChange={(selected) => { setFiles(selected); uploadTicketRef.current = null; reset(); }}
+          onFilesChange={(selected) => { setFiles(selected); uploadTicketRef.current = null; setResumableTicket(false); reset(); }}
           title="Choose a PDF to convert to EPUB"
           description={mode === "advanced" ? "Advanced OCR accepts PDF files up to 100 MB (100,000,000 bytes), using resumable chunks" : "Text-only conversion supports PDF up to 18 MiB locally"} />
       )}
@@ -437,7 +440,7 @@ export default function PDFToEpub({ tool }: { tool: Tool }) {
           )}
         </div>
       )}
-      {error && uploadTicketRef.current?.upload_mode === "chunked" && !processing && files.length > 0 && !job && (
+      {error && resumableTicket && !processing && files.length > 0 && !job && (
         <p className="text-xs text-muted-foreground">Select Start advanced conversion again to resume the pieces already uploaded, while the two-hour ticket remains valid.</p>
       )}
       {job && mode === "advanced" && (
@@ -499,7 +502,7 @@ export default function PDFToEpub({ tool }: { tool: Tool }) {
 
       {error && <div role="alert" className="rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/20 dark:text-red-400">{error}</div>}
       {(submitted || result) && !processing && (
-        <Button variant="outline" size="sm" onClick={() => { currentJobId.current = null; reset(); setFiles([]); }}>
+        <Button variant="outline" size="sm" onClick={() => { currentJobId.current = null; uploadTicketRef.current = null; setResumableTicket(false); reset(); setFiles([]); }}>
           Start a new conversion
         </Button>
       )}

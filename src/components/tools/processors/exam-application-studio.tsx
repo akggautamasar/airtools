@@ -45,32 +45,30 @@ function makePreview(src:HTMLCanvasElement,target:HTMLCanvasElement){
 }
 async function pdfFromImage(image:HTMLImageElement,maxKB:number):Promise<Blob>{
  const {PDFDocument}=await import("pdf-lib");
- const doc=await PDFDocument.create();
- const page=doc.addPage([595.28,841.89]); // A4 PDF points
- const ctxCanvas=document.createElement("canvas");
  const iw=image.naturalWidth,ih=image.naturalHeight;
- for(let pass=0;pass<9;pass++){
-  const factor=Math.min(1,(1800-pass*155)/Math.max(iw,ih));
-  ctxCanvas.width=Math.max(100,Math.round(iw*factor));
-  ctxCanvas.height=Math.max(100,Math.round(ih*factor));
-  ctxCanvas.getContext("2d")?.drawImage(image,0,0,ctxCanvas.width,ctxCanvas.height);
-  const jpg=await canvasAsBlob(ctxCanvas,"jpeg",Math.max(.3,.88-pass*.072));
-  if(pass===0 || pass===8 || jpg.size<maxKB*1024){
-   const bytes=await jpg.arrayBuffer();
-   const embedded=await doc.embedJpg(bytes);
-   const availW=595.28-50,availH=841.89-50;
-   const fit=Math.min(availW/embedded.width,availH/embedded.height);
-   const w=embedded.width*fit,h=embedded.height*fit;
-   page.drawImage(embedded,{x:(595.28-w)/2,y:(841.89-h)/2,width:w,height:h});
-   const pdfBytes=await doc.save();
-   const pdf=new Blob([new Uint8Array(pdfBytes)],{type:"application/pdf"});
-   if(pdf.size<=maxKB*1024||pass===8)return pdf;
-   // The previous image remains on the same PDF page; create fresh document next pass.
-   page.node.delete?.("Contents" as never);
-  }
+ let last:Blob|null=null;
+ for(let pass=0;pass<10;pass++){
+  const canvas=document.createElement("canvas");
+  const limit=Math.max(480,1800-pass*145);
+  const factor=Math.min(1,limit/Math.max(iw,ih));
+  canvas.width=Math.max(100,Math.round(iw*factor));
+  canvas.height=Math.max(100,Math.round(ih*factor));
+  canvas.getContext("2d")?.drawImage(image,0,0,canvas.width,canvas.height);
+  const jpg=await canvasAsBlob(canvas,"jpeg",Math.max(.22,.88-pass*.069));
+  const doc=await PDFDocument.create();
+  const page=doc.addPage([595.28,841.89]);
+  const embedded=await doc.embedJpg(await jpg.arrayBuffer());
+  const availW=595.28-48,availH=841.89-48;
+  const fit=Math.min(availW/embedded.width,availH/embedded.height);
+  const w=embedded.width*fit,h=embedded.height*fit;
+  page.drawImage(embedded,{x:(595.28-w)/2,y:(841.89-h)/2,width:w,height:h});
+  last=new Blob([new Uint8Array(await doc.save())],{type:"application/pdf"});
+  if(last.size<=maxKB*1024) return last;
  }
- throw Error("Could not build document PDF");
+ if(!last)throw Error("Could not encode A4 PDF");
+ return last;
 }
+
 export default function ExamApplicationStudio({tool}:{tool:Tool}){
  const inferred:ExamAssetKind=tool.slug.includes("signature")?"signature":tool.slug.includes("thumb")?"thumb":tool.slug.includes("declaration")?"declaration":tool.slug.includes("document")?"document":"photo";
  const [kind,setKind]=useState<ExamAssetKind>(inferred);
